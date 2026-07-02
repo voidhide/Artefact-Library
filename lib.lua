@@ -4371,7 +4371,49 @@ do
 
         Library.TargetIndicator = function(Self)
             local Indicator = {}
-            local LogoAsset = "rbxassetid://99061651310213"
+            local LogoId = "99061651310213"
+            local LogoUrl = "https://api.qlnt.me/assets/logo_white.png"
+            local LogoTint = Color3.fromRGB(255, 255, 255)
+
+            local function ApplyLogo(ImageLabel)
+                if not ImageLabel then
+                    return
+                end
+
+                ImageLabel.ImageTransparency = 0
+                ImageLabel.ScaleType = Enum.ScaleType.Fit
+                ImageLabel.ImageColor3 = LogoTint
+                ImageLabel.Image = "rbxassetid://" .. LogoId
+
+                task.spawn(function()
+                    local ToAsset = getcustomasset or getsynasset
+                    if writefile and ToAsset then
+                        local Ok, Data = pcall(function()
+                            return game:HttpGet(LogoUrl)
+                        end)
+                        if Ok and type(Data) == "string" and #Data > 64 then
+                            if isfolder and makefolder and not isfolder("Artefact") then
+                                pcall(makefolder, "Artefact")
+                            end
+                            local Path = "Artefact/logo.png"
+                            local Wrote = pcall(writefile, Path, Data)
+                            if Wrote then
+                                local AssetOk, AssetUri = pcall(ToAsset, Path)
+                                if AssetOk and type(AssetUri) == "string" and AssetUri ~= "" then
+                                    ImageLabel.Image = AssetUri
+                                    return
+                                end
+                            end
+                        end
+                    end
+
+                    local ThumbUri = "rbxthumb://type=Asset&id=" .. LogoId .. "&w=150&h=150"
+                    ImageLabel.Image = ThumbUri
+                    pcall(function()
+                        game:GetService("ContentProvider"):PreloadAsync({ ImageLabel })
+                    end)
+                end)
+            end
 
             local Items = {}
             do
@@ -4414,8 +4456,8 @@ do
                 Items["Avatar"] = Library:Create("ImageLabel", {
                     Name = "\0",
                     Parent = Items["TargetIndicator"].Instance,
-                    Image = LogoAsset,
-                    ImageColor3 = Color3.fromRGB(255, 255, 255),
+                    Image = "rbxassetid://" .. LogoId,
+                    ImageColor3 = LogoTint,
                     BackgroundColor3 = Library.Theme["Section"],
                     BackgroundTransparency = 0,
                     Position = UDim2.new(0, 10, 0, 10),
@@ -4536,7 +4578,7 @@ do
             end
 
             local function RefreshBranding()
-                Items["Avatar"].Instance.Image = LogoAsset
+                ApplyLogo(Items["Avatar"].Instance)
                 Items["Name"].Instance.Text = "Artefact"
                 Items["Subtitle"].Instance.Text = "by @qlnt"
             end
