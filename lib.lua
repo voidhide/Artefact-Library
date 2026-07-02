@@ -4371,7 +4371,7 @@ do
 
         Library.TargetIndicator = function(Self)
             local Indicator = {}
-            local LogoAsset = "rbxassetid://115416222152723"
+            local LogoAsset = "rbxassetid://99061651310213"
 
             local Items = {}
             do
@@ -4418,10 +4418,10 @@ do
                     ImageColor3 = Color3.fromRGB(255, 255, 255),
                     BackgroundColor3 = Library.Theme["Section"],
                     BackgroundTransparency = 0,
-                    Position = UDim2.new(0, 10, 0, 11),
-                    Size = UDim2.new(0, 54, 0, 54),
+                    Position = UDim2.new(0, 10, 0, 10),
+                    Size = UDim2.new(0, 56, 0, 56),
                     BorderSizePixel = 0,
-                    ScaleType = Enum.ScaleType.Crop,
+                    ScaleType = Enum.ScaleType.Fit,
                     ZIndex = 2
                 }):AddToTheme({ BackgroundColor3 = 'Section' })
 
@@ -4443,8 +4443,8 @@ do
                     Name = "\0",
                     Parent = Items["TargetIndicator"].Instance,
                     BackgroundTransparency = 1,
-                    Position = UDim2.new(0, 74, 0, 12),
-                    Size = UDim2.new(1, -84, 1, -22),
+                    Position = UDim2.new(0, 74, 0, 10),
+                    Size = UDim2.new(1, -96, 1, -18),
                     BorderSizePixel = 0,
                     ClipsDescendants = false
                 })
@@ -4479,7 +4479,7 @@ do
                     TextSize = Library.FontSize - 1,
                     Parent = Items["Stuff"].Instance,
                     TextColor3 = Library.Theme["Inactive Text"],
-                    Text = "qlnt library",
+                    Text = "by @qlnt",
                     TextWrapped = false,
                     Size = UDim2.new(1, 0, 0, 12),
                     BackgroundTransparency = 1,
@@ -4491,13 +4491,13 @@ do
                 Items["LiveGlow"] = Library:Create("Frame", {
                     Name = "\0",
                     Parent = Items["TargetIndicator"].Instance,
-                    AnchorPoint = Vector2.new(1, 1),
-                    Position = UDim2.new(1, -8, 1, -8),
+                    AnchorPoint = Vector2.new(1, 0),
+                    Position = UDim2.new(1, -7, 0, 7),
                     Size = UDim2.new(0, 10, 0, 10),
                     BorderSizePixel = 0,
                     BackgroundColor3 = Library.Theme["Accent"],
                     BackgroundTransparency = 0.55,
-                    ZIndex = 4
+                    ZIndex = 6
                 })
 
                 Library:Create("UICorner", {
@@ -4538,7 +4538,7 @@ do
             local function RefreshBranding()
                 Items["Avatar"].Instance.Image = LogoAsset
                 Items["Name"].Instance.Text = "Artefact"
-                Items["Subtitle"].Instance.Text = "made by @qlnt"
+                Items["Subtitle"].Instance.Text = "by @qlnt"
             end
 
             function Indicator:SetVisibility(Bool)
