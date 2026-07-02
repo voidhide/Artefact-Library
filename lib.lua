@@ -4415,11 +4415,20 @@ do
                     Name = "\0",
                     Parent = Items["TargetIndicator"].Instance,
                     Image = LogoAsset,
-                    BackgroundTransparency = 1,
-                    Position = UDim2.new(0, 10, 0, 12),
-                    Size = UDim2.new(0, 56, 0, 56),
+                    ImageColor3 = Color3.fromRGB(255, 255, 255),
+                    BackgroundColor3 = Library.Theme["Section"],
+                    BackgroundTransparency = 0,
+                    Position = UDim2.new(0, 10, 0, 11),
+                    Size = UDim2.new(0, 54, 0, 54),
                     BorderSizePixel = 0,
-                    ScaleType = Enum.ScaleType.Fit
+                    ScaleType = Enum.ScaleType.Crop,
+                    ZIndex = 2
+                }):AddToTheme({ BackgroundColor3 = 'Section' })
+
+                Library:Create("UICorner", {
+                    Name = "\0",
+                    Parent = Items["Avatar"].Instance,
+                    CornerRadius = UDim.new(0, 4)
                 })
 
                 Library:Create("UIStroke", {
@@ -4430,40 +4439,34 @@ do
                     Color = Library.Theme["Outline"]
                 }):AddToTheme({ Color = 'Outline' })
 
-                Library:Create("UIStroke", {
-                    Name = "\0",
-                    Parent = Items["Avatar"].Instance,
-                    ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-                    LineJoinMode = Enum.LineJoinMode.Miter,
-                    Color = Library.Theme["Accent"],
-                    BorderOffset = UDim.new(0, 1),
-                    Thickness = 1.2
-                })
-
                 Items["Stuff"] = Library:Create("Frame", {
                     Name = "\0",
                     Parent = Items["TargetIndicator"].Instance,
                     BackgroundTransparency = 1,
-                    Position = UDim2.new(0, 76, 0, 14),
-                    Size = UDim2.new(1, -86, 0, 34),
-                    BorderSizePixel = 0
+                    Position = UDim2.new(0, 74, 0, 12),
+                    Size = UDim2.new(1, -84, 1, -22),
+                    BorderSizePixel = 0,
+                    ClipsDescendants = false
                 })
 
                 Library:Create("UIListLayout", {
                     Name = "\0",
                     Parent = Items["Stuff"].Instance,
                     SortOrder = Enum.SortOrder.LayoutOrder,
-                    Padding = UDim.new(0, 2)
+                    Padding = UDim.new(0, 3),
+                    VerticalAlignment = Enum.VerticalAlignment.Top
                 })
 
                 Items["Name"] = Library:Create("TextLabel", {
                     Name = "\0",
                     FontFace = Library.Font,
-                    TextSize = Library.FontSize + 2,
+                    TextSize = Library.FontSize + 1,
                     Parent = Items["Stuff"].Instance,
                     TextColor3 = Library.Theme["Accent"],
                     Text = "Artefact",
-                    Size = UDim2.new(1, 0, 0, 16),
+                    TextWrapped = false,
+                    TextTruncate = Enum.TextTruncate.None,
+                    Size = UDim2.new(1, 0, 0, 15),
                     BackgroundTransparency = 1,
                     TextXAlignment = Enum.TextXAlignment.Left,
                     BorderSizePixel = 0,
@@ -4477,73 +4480,98 @@ do
                     Parent = Items["Stuff"].Instance,
                     TextColor3 = Library.Theme["Inactive Text"],
                     Text = "qlnt library",
-                    Size = UDim2.new(1, 0, 0, 13),
+                    TextWrapped = false,
+                    Size = UDim2.new(1, 0, 0, 12),
                     BackgroundTransparency = 1,
                     TextXAlignment = Enum.TextXAlignment.Left,
                     BorderSizePixel = 0,
                     LayoutOrder = 2
                 }):AddToTheme({ TextColor3 = 'Inactive Text' })
 
-                Items["Healthbar"] = Library:Create("Frame", {
+                Items["LiveRow"] = Library:Create("Frame", {
                     Name = "\0",
-                    Parent = Items["TargetIndicator"].Instance,
-                    AnchorPoint = Vector2.new(0, 1),
-                    Position = UDim2.new(0, 10, 1, -10),
-                    Size = UDim2.new(1, -20, 0, 12),
+                    Parent = Items["Stuff"].Instance,
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(1, 0, 0, 12),
                     BorderSizePixel = 0,
-                    BackgroundColor3 = Library.Theme["Section"]
-                }):AddToTheme({ BackgroundColor3 = 'Section' })
+                    LayoutOrder = 3
+                })
 
-                Library:Create("UIStroke", {
+                Library:Create("UIListLayout", {
                     Name = "\0",
-                    Parent = Items["Healthbar"].Instance,
-                    ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-                    LineJoinMode = Enum.LineJoinMode.Miter,
-                    Color = Library.Theme["Border"],
-                    BorderOffset = UDim.new(0, 1)
-                }):AddToTheme({ Color = 'Border' })
+                    Parent = Items["LiveRow"].Instance,
+                    FillDirection = Enum.FillDirection.Horizontal,
+                    SortOrder = Enum.SortOrder.LayoutOrder,
+                    Padding = UDim.new(0, 5),
+                    VerticalAlignment = Enum.VerticalAlignment.Center
+                })
 
-                Items["HealthbarFill"] = Library:Create("Frame", {
+                Items["LiveGlow"] = Library:Create("Frame", {
                     Name = "\0",
-                    Parent = Items["Healthbar"].Instance,
-                    Size = UDim2.new(1, 0, 1, 0),
+                    Parent = Items["LiveRow"].Instance,
+                    Size = UDim2.new(0, 10, 0, 10),
                     BorderSizePixel = 0,
-                    BackgroundColor3 = Library.Theme["Accent"]
+                    BackgroundColor3 = Library.Theme["Accent"],
+                    BackgroundTransparency = 0.55,
+                    LayoutOrder = 1
+                })
+
+                Library:Create("UICorner", {
+                    Name = "\0",
+                    Parent = Items["LiveGlow"].Instance,
+                    CornerRadius = UDim.new(1, 0)
+                })
+
+                Items["LiveOrb"] = Library:Create("Frame", {
+                    Name = "\0",
+                    Parent = Items["LiveGlow"].Instance,
+                    AnchorPoint = Vector2.new(0.5, 0.5),
+                    Position = UDim2.new(0.5, 0, 0.5, 0),
+                    Size = UDim2.new(0, 6, 0, 6),
+                    BorderSizePixel = 0,
+                    BackgroundColor3 = Library.Theme["Accent"],
+                    ZIndex = 2
                 }):AddToTheme({ BackgroundColor3 = 'Accent' })
+
+                Library:Create("UICorner", {
+                    Name = "\0",
+                    Parent = Items["LiveOrb"].Instance,
+                    CornerRadius = UDim.new(1, 0)
+                })
 
                 Library:Create("UIGradient", {
                     Name = "\0",
-                    Parent = Items["HealthbarFill"].Instance,
-                    Rotation = 0,
+                    Parent = Items["LiveOrb"].Instance,
+                    Rotation = 45,
                     Color = ColorSequence.new {
-                        ColorSequenceKeypoint.new(0, Color3.fromRGB(120, 160, 255)),
+                        ColorSequenceKeypoint.new(0, Color3.fromRGB(200, 220, 255)),
                         ColorSequenceKeypoint.new(0.5, Color3.fromRGB(152, 188, 255)),
-                        ColorSequenceKeypoint.new(1, Color3.fromRGB(90, 120, 210)),
+                        ColorSequenceKeypoint.new(1, Color3.fromRGB(90, 130, 220)),
                     }
                 })
 
-                Items["Value"] = Library:Create("TextLabel", {
+                Items["LiveText"] = Library:Create("TextLabel", {
                     Name = "\0",
                     FontFace = Library.Font,
-                    TextSize = Library.FontSize - 2,
-                    Parent = Items["Healthbar"].Instance,
-                    TextColor3 = Library.Theme["Text"],
-                    Text = "● online",
-                    Size = UDim2.new(1, -8, 1, 0),
-                    AnchorPoint = Vector2.new(1, 0.5),
-                    Position = UDim2.new(1, -4, 0.5, 0),
+                    TextSize = Library.FontSize - 1,
+                    Parent = Items["LiveRow"].Instance,
+                    TextColor3 = Library.Theme["Inactive Text"],
+                    Text = "channel live",
+                    TextWrapped = false,
+                    Size = UDim2.new(0, 0, 0, 12),
+                    AutomaticSize = Enum.AutomaticSize.X,
                     BackgroundTransparency = 1,
-                    TextXAlignment = Enum.TextXAlignment.Right,
-                    BorderSizePixel = 0
-                }):AddToTheme({ TextColor3 = 'Text' })
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    BorderSizePixel = 0,
+                    LayoutOrder = 2
+                }):AddToTheme({ TextColor3 = 'Inactive Text' })
             end
 
             local function RefreshBranding()
                 Items["Avatar"].Instance.Image = LogoAsset
                 Items["Name"].Instance.Text = "Artefact"
                 Items["Subtitle"].Instance.Text = "qlnt library"
-                Items["Value"].Instance.Text = "● online"
-                Items["HealthbarFill"].Instance.Size = UDim2.new(1, 0, 1, 0)
+                Items["LiveText"].Instance.Text = "channel live"
             end
 
             function Indicator:SetVisibility(Bool)
@@ -4592,11 +4620,11 @@ do
             end
 
             Library:Thread(function()
-                local Pulse = 0
                 while Items["TargetIndicator"] and Items["TargetIndicator"].Instance.Parent do
-                    Pulse = (math.sin(tick() * 2.2) + 1) / 2
-                    Items["HealthbarFill"].Instance.BackgroundTransparency = 0.08 + (Pulse * 0.12)
-                    task.wait(0.05)
+                    local Pulse = (math.sin(tick() * 3.4) + 1) / 2
+                    Items["LiveOrb"].Instance.BackgroundTransparency = Pulse * 0.2
+                    Items["LiveGlow"].Instance.BackgroundTransparency = 0.5 + (Pulse * 0.35)
+                    task.wait(0.04)
                 end
             end)
 
