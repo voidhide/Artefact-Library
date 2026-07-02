@@ -4375,15 +4375,17 @@ do
             local LogoUrl = "https://api.qlnt.me/assets/logo_white.png"
             local LogoTint = Color3.fromRGB(255, 255, 255)
 
-            local function ApplyLogo(ImageLabel)
-                if not ImageLabel then
-                    return
-                end
+            local LogoDecals = {}
+            local LogoPart = nil
 
-                ImageLabel.ImageTransparency = 0
-                ImageLabel.ScaleType = Enum.ScaleType.Fit
-                ImageLabel.ImageColor3 = LogoTint
-                ImageLabel.Image = "rbxassetid://" .. LogoId
+            local function SetLogoTexture(Texture)
+                for _, Decal in LogoDecals do
+                    Decal.Texture = Texture
+                end
+            end
+
+            local function ApplyLogo()
+                SetLogoTexture("rbxassetid://" .. LogoId)
 
                 task.spawn(function()
                     local ToAsset = getcustomasset or getsynasset
@@ -4400,7 +4402,7 @@ do
                             if Wrote then
                                 local AssetOk, AssetUri = pcall(ToAsset, Path)
                                 if AssetOk and type(AssetUri) == "string" and AssetUri ~= "" then
-                                    ImageLabel.Image = AssetUri
+                                    SetLogoTexture(AssetUri)
                                     return
                                 end
                             end
@@ -4408,11 +4410,42 @@ do
                     end
 
                     local ThumbUri = "rbxthumb://type=Asset&id=" .. LogoId .. "&w=150&h=150"
-                    ImageLabel.Image = ThumbUri
-                    pcall(function()
-                        game:GetService("ContentProvider"):PreloadAsync({ ImageLabel })
-                    end)
+                    SetLogoTexture(ThumbUri)
                 end)
+            end
+
+            local function SetupLogoViewport(Viewport)
+                local LogoCamera = Instance.new("Camera")
+                LogoCamera.CFrame = CFrame.new(0, 0, 3.4)
+                LogoCamera.Parent = Viewport
+                Viewport.CurrentCamera = LogoCamera
+                Viewport.Ambient = Color3.fromRGB(255, 255, 255)
+                Viewport.LightColor = Color3.fromRGB(255, 255, 255)
+                Viewport.LightDirection = Vector3.new(-0.35, -0.65, -0.85)
+
+                LogoPart = Instance.new("Part")
+                LogoPart.Name = "LogoPart"
+                LogoPart.Size = Vector3.new(2.2, 2.2, 0.06)
+                LogoPart.Anchored = true
+                LogoPart.CanCollide = false
+                LogoPart.CastShadow = false
+                LogoPart.Material = Enum.Material.SmoothPlastic
+                LogoPart.Color = Color3.fromRGB(255, 255, 255)
+                LogoPart.Transparency = 1
+                LogoPart.Parent = Viewport
+
+                table.clear(LogoDecals)
+
+                for _, Face in { Enum.NormalId.Front, Enum.NormalId.Back } do
+                    local Decal = Instance.new("Decal")
+                    Decal.Name = "LogoDecal"
+                    Decal.Face = Face
+                    Decal.Transparency = 0
+                    Decal.Color3 = LogoTint
+                    Decal.Texture = "rbxassetid://" .. LogoId
+                    Decal.Parent = LogoPart
+                    table.insert(LogoDecals, Decal)
+                end
             end
 
             local Items = {}
@@ -4453,33 +4486,27 @@ do
                     BackgroundColor3 = Library.Theme["Accent"]
                 }):AddToTheme({ BackgroundColor3 = 'Accent' })
 
-                Items["Avatar"] = Library:Create("ImageLabel", {
+                Items["Avatar"] = Library:Create("Frame", {
                     Name = "\0",
                     Parent = Items["TargetIndicator"].Instance,
-                    Image = "rbxassetid://" .. LogoId,
-                    ImageColor3 = LogoTint,
-                    BackgroundColor3 = Library.Theme["Section"],
-                    BackgroundTransparency = 0,
+                    BackgroundTransparency = 1,
                     Position = UDim2.new(0, 10, 0, 10),
                     Size = UDim2.new(0, 56, 0, 56),
                     BorderSizePixel = 0,
-                    ScaleType = Enum.ScaleType.Fit,
+                    ClipsDescendants = true,
                     ZIndex = 2
-                }):AddToTheme({ BackgroundColor3 = 'Section' })
-
-                Library:Create("UICorner", {
-                    Name = "\0",
-                    Parent = Items["Avatar"].Instance,
-                    CornerRadius = UDim.new(0, 4)
                 })
 
-                Library:Create("UIStroke", {
+                Items["LogoViewport"] = Library:Create("ViewportFrame", {
                     Name = "\0",
                     Parent = Items["Avatar"].Instance,
-                    ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-                    LineJoinMode = Enum.LineJoinMode.Miter,
-                    Color = Library.Theme["Outline"]
-                }):AddToTheme({ Color = 'Outline' })
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(1, 0, 1, 0),
+                    BorderSizePixel = 0,
+                    ZIndex = 2
+                })
+
+                SetupLogoViewport(Items["LogoViewport"].Instance)
 
                 Items["Stuff"] = Library:Create("Frame", {
                     Name = "\0",
@@ -4578,10 +4605,19 @@ do
             end
 
             local function RefreshBranding()
-                ApplyLogo(Items["Avatar"].Instance)
+                ApplyLogo()
                 Items["Name"].Instance.Text = "Artefact"
                 Items["Subtitle"].Instance.Text = "by @qlnt"
             end
+
+            Library:Connect(game:GetService("RunService").Heartbeat, function()
+                if not LogoPart or not LogoPart.Parent then
+                    return
+                end
+
+                local Time = tick() * 1.15
+                LogoPart.CFrame = CFrame.new(0, 0, 0) * CFrame.Angles(math.rad(14), Time, 0)
+            end)
 
             function Indicator:SetVisibility(Bool)
                 Items["TargetIndicator"].Instance.Visible = Bool
