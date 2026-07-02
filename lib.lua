@@ -4372,6 +4372,7 @@ do
 
         Library.TargetIndicator = function(Self)
             local Indicator = {}
+            local LogoAsset = "rbxassetid://115416222152723"
 
             local Items = {}
             do
@@ -4403,14 +4404,23 @@ do
                     BorderOffset = UDim.new(0, 1)
                 }):AddToTheme({ Color = 'Border' })
 
+                Items["AccentLiner"] = Library:Create("Frame", {
+                    Name = "\0",
+                    Parent = Items["TargetIndicator"].Instance,
+                    Size = UDim2.new(1, 0, 0, 1),
+                    BorderSizePixel = 0,
+                    BackgroundColor3 = Library.Theme["Accent"]
+                }):AddToTheme({ BackgroundColor3 = 'Accent' })
+
                 Items["Avatar"] = Library:Create("ImageLabel", {
                     Name = "\0",
                     Parent = Items["TargetIndicator"].Instance,
-                    Image = "rbxasset://textures/ui/GuiImagePlaceholder.png",
+                    Image = LogoAsset,
                     BackgroundTransparency = 1,
-                    Position = UDim2.new(0, 10, 0, 10),
-                    Size = UDim2.new(0, 60, 0, 60),
-                    BorderSizePixel = 0
+                    Position = UDim2.new(0, 10, 0, 12),
+                    Size = UDim2.new(0, 56, 0, 56),
+                    BorderSizePixel = 0,
+                    ScaleType = Enum.ScaleType.Fit
                 })
 
                 Library:Create("UIStroke", {
@@ -4426,16 +4436,61 @@ do
                     Parent = Items["Avatar"].Instance,
                     ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
                     LineJoinMode = Enum.LineJoinMode.Miter,
-                    Color = Library.Theme["Border"],
-                    BorderOffset = UDim.new(0, 1)
-                }):AddToTheme({ Color = 'Border' })
+                    Color = Library.Theme["Accent"],
+                    BorderOffset = UDim.new(0, 1),
+                    Thickness = 1.2
+                })
+
+                Items["Stuff"] = Library:Create("Frame", {
+                    Name = "\0",
+                    Parent = Items["TargetIndicator"].Instance,
+                    BackgroundTransparency = 1,
+                    Position = UDim2.new(0, 76, 0, 14),
+                    Size = UDim2.new(1, -86, 0, 34),
+                    BorderSizePixel = 0
+                })
+
+                Library:Create("UIListLayout", {
+                    Name = "\0",
+                    Parent = Items["Stuff"].Instance,
+                    SortOrder = Enum.SortOrder.LayoutOrder,
+                    Padding = UDim.new(0, 2)
+                })
+
+                Items["Name"] = Library:Create("TextLabel", {
+                    Name = "\0",
+                    FontFace = Library.Font,
+                    TextSize = Library.FontSize + 2,
+                    Parent = Items["Stuff"].Instance,
+                    TextColor3 = Library.Theme["Accent"],
+                    Text = "Artefact",
+                    Size = UDim2.new(1, 0, 0, 16),
+                    BackgroundTransparency = 1,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    BorderSizePixel = 0,
+                    LayoutOrder = 1
+                }):AddToTheme({ TextColor3 = 'Accent' })
+
+                Items["Subtitle"] = Library:Create("TextLabel", {
+                    Name = "\0",
+                    FontFace = Library.Font,
+                    TextSize = Library.FontSize - 1,
+                    Parent = Items["Stuff"].Instance,
+                    TextColor3 = Library.Theme["Dark Text"],
+                    Text = "qlnt library",
+                    Size = UDim2.new(1, 0, 0, 13),
+                    BackgroundTransparency = 1,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    BorderSizePixel = 0,
+                    LayoutOrder = 2
+                }):AddToTheme({ TextColor3 = 'Dark Text' })
 
                 Items["Healthbar"] = Library:Create("Frame", {
                     Name = "\0",
                     Parent = Items["TargetIndicator"].Instance,
                     AnchorPoint = Vector2.new(0, 1),
-                    Position = UDim2.new(0, 80, 1, -10),
-                    Size = UDim2.new(1, -90, 0, 10),
+                    Position = UDim2.new(0, 10, 1, -10),
+                    Size = UDim2.new(1, -20, 0, 12),
                     BorderSizePixel = 0,
                     BackgroundColor3 = Library.Theme["Section"]
                 }):AddToTheme({ BackgroundColor3 = 'Section' })
@@ -4454,75 +4509,43 @@ do
                     Parent = Items["Healthbar"].Instance,
                     Size = UDim2.new(1, 0, 1, 0),
                     BorderSizePixel = 0,
-                    BackgroundColor3 = Color3.fromRGB(70, 255, 144)
+                    BackgroundColor3 = Library.Theme["Accent"]
+                }):AddToTheme({ BackgroundColor3 = 'Accent' })
+
+                Library:Create("UIGradient", {
+                    Name = "\0",
+                    Parent = Items["HealthbarFill"].Instance,
+                    Rotation = 0,
+                    Color = ColorSequence.new {
+                        ColorSequenceKeypoint.new(0, Color3.fromRGB(120, 160, 255)),
+                        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(152, 188, 255)),
+                        ColorSequenceKeypoint.new(1, Color3.fromRGB(90, 120, 210)),
+                    }
                 })
 
                 Items["Value"] = Library:Create("TextLabel", {
                     Name = "\0",
                     FontFace = Library.Font,
-                    TextSize = Library.FontSize,
-                    Parent = Items["HealthbarFill"].Instance,
+                    TextSize = Library.FontSize - 2,
+                    Parent = Items["Healthbar"].Instance,
                     TextColor3 = Library.Theme["Text"],
-                    Text = "100/100",
-                    Size = UDim2.new(0, 0, 0, 15),
+                    Text = "● online",
+                    Size = UDim2.new(1, -8, 1, 0),
                     AnchorPoint = Vector2.new(1, 0.5),
-                    Position = UDim2.new(1, -4, 0.5, -1),
+                    Position = UDim2.new(1, -4, 0.5, 0),
                     BackgroundTransparency = 1,
-                    TextXAlignment = Enum.TextXAlignment.Left,
-                    BorderSizePixel = 0,
-                    AutomaticSize = Enum.AutomaticSize.X
-                }):AddToTheme({ TextColor3 = 'Text' })
-
-                Library:Create("UIStroke", {
-                    Name = "\0",
-                    Parent = Items["Value"].Instance,
-                    LineJoinMode = Enum.LineJoinMode.Miter
-                })
-
-                Library:Create("UIGradient", {
-                    Name = "\0",
-                    Parent = Items["HealthbarFill"].Instance,
-                    Rotation = -90,
-                    Color = ColorSequence.new {
-                        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
-                        ColorSequenceKeypoint.new(1, Color3.fromRGB(172, 172, 172))
-                    }
-                })
-
-                Items["Stuff"] = Library:Create("Frame", {
-                    Name = "\0",
-                    Parent = Items["TargetIndicator"].Instance,
-                    BackgroundTransparency = 1,
-                    Position = UDim2.new(0, 80, 0, 10),
-                    Size = UDim2.new(1, -90, 0, 15),
-                    BorderSizePixel = 0,
-                    AutomaticSize = Enum.AutomaticSize.Y
-                })
-
-                Items["Name"] = Library:Create("TextLabel", {
-                    Name = "\0",
-                    FontFace = Library.Font,
-                    TextSize = Library.FontSize,
-                    Parent = Items["Stuff"].Instance,
-                    TextColor3 = Library.Theme["Text"],
-                    Text = "sametexe009",
-                    Size = UDim2.new(1, -90, 0, 15),
-                    BackgroundTransparency = 1,
-                    TextXAlignment = Enum.TextXAlignment.Left,
-                    Position = UDim2.new(0, 80, 0, 10),
+                    TextXAlignment = Enum.TextXAlignment.Right,
                     BorderSizePixel = 0
                 }):AddToTheme({ TextColor3 = 'Text' })
-
-                Library:Create("UIListLayout", {
-                    Name = "\0",
-                    Parent = Items["Stuff"].Instance,
-                    SortOrder = Enum.SortOrder.LayoutOrder
-                })
             end
 
-            local HealthConnection = nil
-            local BoundTarget = nil
-            local BoundHumanoid = nil
+            local function RefreshBranding()
+                Items["Avatar"].Instance.Image = LogoAsset
+                Items["Name"].Instance.Text = "Artefact"
+                Items["Subtitle"].Instance.Text = "qlnt library"
+                Items["Value"].Instance.Text = "● online"
+                Items["HealthbarFill"].Instance.Size = UDim2.new(1, 0, 1, 0)
+            end
 
             function Indicator:SetVisibility(Bool)
                 Items["TargetIndicator"].Instance.Visible = Bool
@@ -4546,61 +4569,11 @@ do
             end
 
             function Indicator:ResetConnection()
-                if HealthConnection then
-                    HealthConnection:Disconnect()
-                    HealthConnection = nil
-                end
-                BoundTarget = nil
-                BoundHumanoid = nil
             end
 
-            function Indicator:SetTarget(Target)
-                Indicator:ResetConnection()
-
-                if not Target then
-                    Items["Name"].Instance.Text = "No target selected"
-                    Items["Avatar"].Instance.Image = "rbxasset://textures/ui/GuiImagePlaceholder.png"
-                    Items["Value"].Instance.Text = "0/0"
-                    Items["HealthbarFill"]:Tween({ Size = UDim2.new(0, 0, 1, 0) })
-                    return false
-                end
-
-                local Name = Target.Name
-
-                Items["Name"].Instance.Text = Name
-                Items["Avatar"].Instance.Image = Players:GetUserThumbnailAsync(Target.UserId, Enum.ThumbnailType
-                    .HeadShot, Enum.ThumbnailSize.Size420x420)
-
-                local Character = Target.Character
-                local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
-                if not Humanoid then
-                    Items["Value"].Instance.Text = "0/0"
-                    Items["HealthbarFill"]:Tween({ Size = UDim2.new(0, 0, 1, 0) })
-                    return false
-                end
-
-                BoundTarget = Target
-                BoundHumanoid = Humanoid
-
-                local function UpdateHealth(Health)
-                    if BoundTarget ~= Target or BoundHumanoid ~= Humanoid then
-                        return
-                    end
-                    local MaxHealth = Humanoid.MaxHealth
-                    local SafeMaxHealth = math.max(MaxHealth, 1)
-                    local SafeHealth = math.max(Health, 0)
-                    local DisplayHealth = math.floor(SafeHealth + 0.5)
-                    local DisplayMaxHealth = math.floor(math.max(MaxHealth, 0) + 0.5)
-
-                    Items["Value"].Instance.Text = DisplayHealth .. "/" .. DisplayMaxHealth
-
-                    local HealthPercent = math.clamp(SafeHealth / SafeMaxHealth, 0, 1)
-                    Items["HealthbarFill"]:Tween({ Size = UDim2.new(HealthPercent, 0, 1, 0) })
-                end
-
-                UpdateHealth(Humanoid.Health)
-                HealthConnection = Humanoid.HealthChanged:Connect(UpdateHealth)
-                return true
+            function Indicator:SetTarget(_Target)
+                RefreshBranding()
+                return false
             end
 
             function Indicator:AddItem(Text)
@@ -4609,20 +4582,30 @@ do
                     FontFace = Library.Font,
                     TextSize = Library.FontSize,
                     Parent = Items["Stuff"].Instance,
-                    TextColor3 = Library.Theme["Text"],
+                    TextColor3 = Library.Theme["Inactive Text"],
                     Text = Text,
-                    Size = UDim2.new(1, -90, 0, 15),
+                    Size = UDim2.new(1, 0, 0, 13),
                     BackgroundTransparency = 1,
                     TextXAlignment = Enum.TextXAlignment.Left,
-                    Position = UDim2.new(0, 80, 0, 24),
-                    BorderSizePixel = 0
-                }):AddToTheme({ TextColor3 = 'Text' })
+                    BorderSizePixel = 0,
+                    LayoutOrder = 3
+                }):AddToTheme({ TextColor3 = 'Inactive Text' })
             end
+
+            Library:Thread(function()
+                local Pulse = 0
+                while Items["TargetIndicator"] and Items["TargetIndicator"].Instance.Parent do
+                    Pulse = (math.sin(tick() * 2.2) + 1) / 2
+                    Items["HealthbarFill"].Instance.BackgroundTransparency = 0.08 + (Pulse * 0.12)
+                    task.wait(0.05)
+                end
+            end)
 
             Library:RegisterLayout("TargetIndicator", {
                 Instance = Items["TargetIndicator"].Instance
             })
 
+            RefreshBranding()
             Indicator:Center()
 
             return Indicator
@@ -7251,9 +7234,7 @@ do
             end)
 
             Library:Connect(Players.PlayerAdded, function(Player)
-                if Player ~= LocalPlayer then
-                    Playerlist:Add(Player)
-                end
+                Playerlist:Add(Player)
             end)
 
             Library:Connect(Players.PlayerRemoving, function(Player)
