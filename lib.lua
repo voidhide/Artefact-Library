@@ -4375,13 +4375,14 @@ do
             local LogoUrl = "https://api.qlnt.me/assets/logo_white.png"
             local LogoTint = Color3.fromRGB(255, 255, 255)
 
-            local LogoDecals = {}
+            local LogoImages = {}
             local LogoCamera = nil
             local LogoCard = nil
+            local LogoSpinTime = 0
 
             local function SetLogoTexture(Texture)
-                for _, Decal in LogoDecals do
-                    Decal.Texture = Texture
+                for _, Image in LogoImages do
+                    Image.Image = Texture
                 end
             end
 
@@ -4421,16 +4422,16 @@ do
                 World.Parent = Viewport
 
                 LogoCamera = Instance.new("Camera")
+                LogoCamera.FieldOfView = 40
                 LogoCamera.Parent = Viewport
                 Viewport.CurrentCamera = LogoCamera
-                LogoCamera.CFrame = CFrame.lookAt(Vector3.new(0, 0.3, 4.2), Vector3.zero)
-                Viewport.Ambient = Color3.fromRGB(255, 255, 255)
+                Viewport.Ambient = Color3.fromRGB(240, 240, 245)
                 Viewport.LightColor = Color3.fromRGB(255, 255, 255)
-                Viewport.LightDirection = Vector3.new(-0.4, -0.75, -0.55)
+                Viewport.LightDirection = Vector3.new(-0.35, -0.85, -0.4)
 
                 local Card = Instance.new("Part")
                 Card.Name = "LogoCard"
-                Card.Size = Vector3.new(2.5, 2.5, 0.12)
+                Card.Size = Vector3.new(2.8, 2.8, 0.08)
                 Card.Anchored = true
                 Card.CanCollide = false
                 Card.CastShadow = false
@@ -4440,16 +4441,31 @@ do
                 Card.Parent = World
                 LogoCard = Card
 
-                table.clear(LogoDecals)
+                table.clear(LogoImages)
 
                 for _, Face in { Enum.NormalId.Front, Enum.NormalId.Back } do
-                    local Decal = Instance.new("Decal")
-                    Decal.Face = Face
-                    Decal.Color3 = LogoTint
-                    Decal.Texture = "rbxassetid://" .. LogoId
-                    Decal.Parent = Card
-                    table.insert(LogoDecals, Decal)
+                    local Surface = Instance.new("SurfaceGui")
+                    Surface.Name = "LogoSurface"
+                    Surface.Face = Face
+                    Surface.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+                    Surface.PixelsPerStud = 128
+                    Surface.LightInfluence = 0
+                    Surface.AlwaysOnTop = false
+                    Surface.Parent = Card
+
+                    local Image = Instance.new("ImageLabel")
+                    Image.Name = "LogoImage"
+                    Image.Size = UDim2.fromScale(1, 1)
+                    Image.BackgroundTransparency = 1
+                    Image.BorderSizePixel = 0
+                    Image.ImageColor3 = LogoTint
+                    Image.ScaleType = Enum.ScaleType.Fit
+                    Image.Image = "rbxassetid://" .. LogoId
+                    Image.Parent = Surface
+                    table.insert(LogoImages, Image)
                 end
+
+                LogoCamera.CFrame = CFrame.lookAt(Vector3.new(0.85, 0.45, 5.2), Vector3.zero)
             end
 
             local Items = {}
@@ -4614,14 +4630,21 @@ do
                 Items["Subtitle"].Instance.Text = "by @qlnt"
             end
 
-            Library:Connect(RunService.RenderStepped, function()
-                if LogoCard and LogoCard.Parent then
-                    LogoCard.CFrame = CFrame.Angles(0, tick() * 0.75, 0)
+            Library:Connect(RunService.RenderStepped, function(DeltaTime)
+                if not LogoCard or not LogoCard.Parent then
+                    return
                 end
 
-                if LogoCamera and LogoCamera.Parent then
-                    LogoCamera.CFrame = CFrame.lookAt(Vector3.new(0, 0.3, 4.2), Vector3.zero)
+                if not Items["TargetIndicator"] or not Items["TargetIndicator"].Instance.Visible then
+                    return
                 end
+
+                LogoSpinTime += DeltaTime
+
+                local RotY = LogoSpinTime * 1.1
+                local RotX = math.rad(16) + math.sin(LogoSpinTime * 0.95) * math.rad(24)
+
+                LogoCard.CFrame = CFrame.new(0, 0, 0) * CFrame.Angles(RotX, RotY, 0)
             end)
 
             function Indicator:SetVisibility(Bool)
