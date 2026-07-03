@@ -4375,19 +4375,18 @@ do
             local LogoUrl = "https://api.qlnt.me/assets/logo_white.png"
             local LogoTint = Color3.fromRGB(255, 255, 255)
 
-            local LogoImages = {}
-            local LogoCamera = nil
-            local LogoCard = nil
             local LogoSpinTime = 0
 
-            local function SetLogoTexture(Texture)
-                for _, Image in LogoImages do
-                    Image.Image = Texture
+            local function ApplyLogo(ImageLabel)
+                if not ImageLabel then
+                    return
                 end
-            end
 
-            local function ApplyLogo()
-                SetLogoTexture("rbxassetid://" .. LogoId)
+                ImageLabel.ImageTransparency = 0
+                ImageLabel.BackgroundTransparency = 1
+                ImageLabel.ScaleType = Enum.ScaleType.Fit
+                ImageLabel.ImageColor3 = LogoTint
+                ImageLabel.Image = "rbxassetid://" .. LogoId
 
                 task.spawn(function()
                     local ToAsset = getcustomasset or getsynasset
@@ -4404,68 +4403,15 @@ do
                             if Wrote then
                                 local AssetOk, AssetUri = pcall(ToAsset, Path)
                                 if AssetOk and type(AssetUri) == "string" and AssetUri ~= "" then
-                                    SetLogoTexture(AssetUri)
+                                    ImageLabel.Image = AssetUri
                                     return
                                 end
                             end
                         end
                     end
 
-                    local ThumbUri = "rbxthumb://type=Asset&id=" .. LogoId .. "&w=256&h=256"
-                    SetLogoTexture(ThumbUri)
+                    ImageLabel.Image = "rbxthumb://type=Asset&id=" .. LogoId .. "&w=256&h=256"
                 end)
-            end
-
-            local function SetupLogoScene(Viewport)
-                local World = Instance.new("WorldModel")
-                World.Name = "LogoWorld"
-                World.Parent = Viewport
-
-                LogoCamera = Instance.new("Camera")
-                LogoCamera.FieldOfView = 40
-                LogoCamera.Parent = Viewport
-                Viewport.CurrentCamera = LogoCamera
-                Viewport.Ambient = Color3.fromRGB(240, 240, 245)
-                Viewport.LightColor = Color3.fromRGB(255, 255, 255)
-                Viewport.LightDirection = Vector3.new(-0.35, -0.85, -0.4)
-
-                local Card = Instance.new("Part")
-                Card.Name = "LogoCard"
-                Card.Size = Vector3.new(2.8, 2.8, 0.08)
-                Card.Anchored = true
-                Card.CanCollide = false
-                Card.CastShadow = false
-                Card.Transparency = 1
-                Card.Material = Enum.Material.SmoothPlastic
-                Card.CFrame = CFrame.new(0, 0, 0)
-                Card.Parent = World
-                LogoCard = Card
-
-                table.clear(LogoImages)
-
-                for _, Face in { Enum.NormalId.Front, Enum.NormalId.Back } do
-                    local Surface = Instance.new("SurfaceGui")
-                    Surface.Name = "LogoSurface"
-                    Surface.Face = Face
-                    Surface.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-                    Surface.PixelsPerStud = 128
-                    Surface.LightInfluence = 0
-                    Surface.AlwaysOnTop = false
-                    Surface.Parent = Card
-
-                    local Image = Instance.new("ImageLabel")
-                    Image.Name = "LogoImage"
-                    Image.Size = UDim2.fromScale(1, 1)
-                    Image.BackgroundTransparency = 1
-                    Image.BorderSizePixel = 0
-                    Image.ImageColor3 = LogoTint
-                    Image.ScaleType = Enum.ScaleType.Fit
-                    Image.Image = "rbxassetid://" .. LogoId
-                    Image.Parent = Surface
-                    table.insert(LogoImages, Image)
-                end
-
-                LogoCamera.CFrame = CFrame.lookAt(Vector3.new(0.85, 0.45, 5.2), Vector3.zero)
             end
 
             local Items = {}
@@ -4513,20 +4459,42 @@ do
                     Position = UDim2.new(0, 10, 0, 10),
                     Size = UDim2.new(0, 54, 0, 54),
                     BorderSizePixel = 0,
-                    ClipsDescendants = true,
+                    ClipsDescendants = false,
                     ZIndex = 2
                 })
 
-                Items["LogoViewport"] = Library:Create("ViewportFrame", {
+                Items["LogoGlow"] = Library:Create("Frame", {
                     Name = "\0",
                     Parent = Items["Avatar"].Instance,
-                    BackgroundTransparency = 1,
-                    Size = UDim2.new(1, 0, 1, 0),
+                    AnchorPoint = Vector2.new(0.5, 0.5),
+                    Position = UDim2.new(0.5, 0, 0.5, 0),
+                    Size = UDim2.new(0, 46, 0, 46),
                     BorderSizePixel = 0,
+                    BackgroundColor3 = Library.Theme["Accent"],
+                    BackgroundTransparency = 0.82,
                     ZIndex = 2
+                }):AddToTheme({ BackgroundColor3 = 'Accent' })
+
+                Library:Create("UICorner", {
+                    Name = "\0",
+                    Parent = Items["LogoGlow"].Instance,
+                    CornerRadius = UDim.new(1, 0)
                 })
 
-                SetupLogoScene(Items["LogoViewport"].Instance)
+                Items["LogoImage"] = Library:Create("ImageLabel", {
+                    Name = "\0",
+                    Parent = Items["Avatar"].Instance,
+                    AnchorPoint = Vector2.new(0.5, 0.5),
+                    Position = UDim2.new(0.5, 0, 0.5, 0),
+                    Size = UDim2.new(0, 40, 0, 40),
+                    BackgroundTransparency = 1,
+                    BorderSizePixel = 0,
+                    ScaleType = Enum.ScaleType.Fit,
+                    ImageColor3 = LogoTint,
+                    ZIndex = 3
+                })
+
+                ApplyLogo(Items["LogoImage"].Instance)
 
                 Items["Stuff"] = Library:Create("Frame", {
                     Name = "\0",
@@ -4625,26 +4593,26 @@ do
             end
 
             local function RefreshBranding()
-                ApplyLogo()
+                ApplyLogo(Items["LogoImage"].Instance)
                 Items["Name"].Instance.Text = "Artefact"
                 Items["Subtitle"].Instance.Text = "by @qlnt"
             end
 
             Library:Connect(RunService.RenderStepped, function(DeltaTime)
-                if not LogoCard or not LogoCard.Parent then
-                    return
-                end
-
                 if not Items["TargetIndicator"] or not Items["TargetIndicator"].Instance.Visible then
                     return
                 end
 
                 LogoSpinTime += DeltaTime
+                local Pulse = (math.sin(LogoSpinTime * 2.4) + 1) / 2
+                local Scale = 38 + (Pulse * 4)
+                local GlowScale = Scale + 8
+                local Tilt = math.sin(LogoSpinTime * 0.9) * 5
 
-                local RotY = LogoSpinTime * 1.1
-                local RotX = math.rad(16) + math.sin(LogoSpinTime * 0.95) * math.rad(24)
-
-                LogoCard.CFrame = CFrame.new(0, 0, 0) * CFrame.Angles(RotX, RotY, 0)
+                Items["LogoImage"].Instance.Size = UDim2.fromOffset(Scale, Scale)
+                Items["LogoImage"].Instance.Rotation = Tilt
+                Items["LogoGlow"].Instance.Size = UDim2.fromOffset(GlowScale, GlowScale)
+                Items["LogoGlow"].Instance.BackgroundTransparency = 0.78 + (Pulse * 0.14)
             end)
 
             function Indicator:SetVisibility(Bool)
