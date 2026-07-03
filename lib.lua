@@ -4371,263 +4371,43 @@ do
 
         Library.TargetIndicator = function(Self)
             local Indicator = {}
-            local ScanTime = 0
-            local StatusTick = 0
-
             local Items = {}
-            do
-                Items["TargetIndicator"] = Library:Create("Frame", {
-                    Name = "\0",
-                    Parent = Library.Holder.Instance,
-                    Position = UDim2.new(0.4242021143436432, 0, 0.7932242751121521, 0),
-                    Size = UDim2.new(0, 256, 0, 80),
-                    BorderSizePixel = 0,
-                    BackgroundColor3 = Library.Theme["Background"]
-                }):AddToTheme({ BackgroundColor3 = 'Background' })
 
-                Items["TargetIndicator"]:MakeDraggable()
+            Items["TargetIndicator"] = Library:Create("Frame", {
+                Name = "\0",
+                Parent = Library.Holder.Instance,
+                Position = UDim2.new(0.4242021143436432, 0, 0.7932242751121521, 0),
+                Size = UDim2.new(0, 220, 0, 88),
+                BorderSizePixel = 0,
+                BackgroundColor3 = Library.Theme["Background"]
+            }):AddToTheme({ BackgroundColor3 = 'Background' })
 
-                Library:Create("UIStroke", {
-                    Name = "\0",
-                    Parent = Items["TargetIndicator"].Instance,
-                    ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-                    LineJoinMode = Enum.LineJoinMode.Miter,
-                    Color = Library.Theme["Outline"]
-                }):AddToTheme({ Color = 'Outline' })
+            Items["TargetIndicator"]:MakeDraggable()
 
-                Library:Create("UIStroke", {
-                    Name = "\0",
-                    Parent = Items["TargetIndicator"].Instance,
-                    ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-                    LineJoinMode = Enum.LineJoinMode.Miter,
-                    Color = Library.Theme["Border"],
-                    BorderOffset = UDim.new(0, 1)
-                }):AddToTheme({ Color = 'Border' })
+            Library:Create("UIStroke", {
+                Name = "\0",
+                Parent = Items["TargetIndicator"].Instance,
+                ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+                LineJoinMode = Enum.LineJoinMode.Miter,
+                Color = Library.Theme["Outline"]
+            }):AddToTheme({ Color = 'Outline' })
 
-                Items["AccentLiner"] = Library:Create("Frame", {
-                    Name = "\0",
-                    Parent = Items["TargetIndicator"].Instance,
-                    Size = UDim2.new(1, 0, 0, 1),
-                    BorderSizePixel = 0,
-                    BackgroundColor3 = Library.Theme["Accent"]
-                }):AddToTheme({ BackgroundColor3 = 'Accent' })
+            Library:Create("UIStroke", {
+                Name = "\0",
+                Parent = Items["TargetIndicator"].Instance,
+                ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+                LineJoinMode = Enum.LineJoinMode.Miter,
+                Color = Library.Theme["Border"],
+                BorderOffset = UDim.new(0, 1)
+            }):AddToTheme({ Color = 'Border' })
 
-                Items["Badge"] = Library:Create("Frame", {
-                    Name = "\0",
-                    Parent = Items["TargetIndicator"].Instance,
-                    Position = UDim2.new(0, 10, 0, 10),
-                    Size = UDim2.new(0, 54, 0, 54),
-                    BorderSizePixel = 0,
-                    BackgroundColor3 = Library.Theme["Section"],
-                    ZIndex = 2
-                }):AddToTheme({ BackgroundColor3 = 'Section' })
-
-                Library:Create("UIStroke", {
-                    Name = "\0",
-                    Parent = Items["Badge"].Instance,
-                    ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-                    LineJoinMode = Enum.LineJoinMode.Miter,
-                    Color = Library.Theme["Accent"],
-                    Transparency = 0.35
-                }):AddToTheme({ Color = 'Accent' })
-
-                Items["BadgeLetter"] = Library:Create("TextLabel", {
-                    Name = "\0",
-                    FontFace = Library.Font,
-                    TextSize = Library.FontSize + 8,
-                    Parent = Items["Badge"].Instance,
-                    TextColor3 = Library.Theme["Accent"],
-                    Text = "A",
-                    Size = UDim2.new(1, 0, 1, -4),
-                    BackgroundTransparency = 1,
-                    TextXAlignment = Enum.TextXAlignment.Center,
-                    TextYAlignment = Enum.TextYAlignment.Center,
-                    BorderSizePixel = 0,
-                    ZIndex = 3
-                }):AddToTheme({ TextColor3 = 'Accent' })
-
-                Items["BadgeLine"] = Library:Create("Frame", {
-                    Name = "\0",
-                    Parent = Items["Badge"].Instance,
-                    AnchorPoint = Vector2.new(0.5, 1),
-                    Position = UDim2.new(0.5, 0, 1, 0),
-                    Size = UDim2.new(1, -10, 0, 1),
-                    BorderSizePixel = 0,
-                    BackgroundColor3 = Library.Theme["Accent"],
-                    ZIndex = 3
-                }):AddToTheme({ BackgroundColor3 = 'Accent' })
-
-                Items["Stuff"] = Library:Create("Frame", {
-                    Name = "\0",
-                    Parent = Items["TargetIndicator"].Instance,
-                    BackgroundTransparency = 1,
-                    Position = UDim2.new(0, 74, 0, 10),
-                    Size = UDim2.new(1, -96, 1, -18),
-                    BorderSizePixel = 0,
-                    ClipsDescendants = false
-                })
-
-                Library:Create("UIListLayout", {
-                    Name = "\0",
-                    Parent = Items["Stuff"].Instance,
-                    SortOrder = Enum.SortOrder.LayoutOrder,
-                    Padding = UDim.new(0, 3),
-                    VerticalAlignment = Enum.VerticalAlignment.Top
-                })
-
-                Items["Name"] = Library:Create("TextLabel", {
-                    Name = "\0",
-                    FontFace = Library.Font,
-                    TextSize = Library.FontSize + 1,
-                    Parent = Items["Stuff"].Instance,
-                    TextColor3 = Library.Theme["Accent"],
-                    Text = "Artefact",
-                    TextWrapped = false,
-                    TextTruncate = Enum.TextTruncate.None,
-                    Size = UDim2.new(1, 0, 0, 15),
-                    BackgroundTransparency = 1,
-                    TextXAlignment = Enum.TextXAlignment.Left,
-                    BorderSizePixel = 0,
-                    LayoutOrder = 1
-                }):AddToTheme({ TextColor3 = 'Accent' })
-
-                Items["Subtitle"] = Library:Create("TextLabel", {
-                    Name = "\0",
-                    FontFace = Library.Font,
-                    TextSize = Library.FontSize - 1,
-                    Parent = Items["Stuff"].Instance,
-                    TextColor3 = Library.Theme["Inactive Text"],
-                    Text = "by @qlnt",
-                    TextWrapped = false,
-                    Size = UDim2.new(1, 0, 0, 12),
-                    BackgroundTransparency = 1,
-                    TextXAlignment = Enum.TextXAlignment.Left,
-                    BorderSizePixel = 0,
-                    LayoutOrder = 2
-                }):AddToTheme({ TextColor3 = 'Inactive Text' })
-
-                Items["StatusLine"] = Library:Create("TextLabel", {
-                    Name = "\0",
-                    FontFace = Library.Font,
-                    TextSize = Library.FontSize - 1,
-                    Parent = Items["Stuff"].Instance,
-                    TextColor3 = Library.Theme["Inactive Text"],
-                    Text = "active",
-                    Size = UDim2.new(1, 0, 0, 12),
-                    BackgroundTransparency = 1,
-                    TextXAlignment = Enum.TextXAlignment.Left,
-                    BorderSizePixel = 0,
-                    LayoutOrder = 3
-                }):AddToTheme({ TextColor3 = 'Inactive Text' })
-
-                Items["ScanTrack"] = Library:Create("Frame", {
-                    Name = "\0",
-                    Parent = Items["TargetIndicator"].Instance,
-                    AnchorPoint = Vector2.new(0, 1),
-                    Position = UDim2.new(0, 10, 1, -8),
-                    Size = UDim2.new(1, -20, 0, 2),
-                    BorderSizePixel = 0,
-                    BackgroundColor3 = Library.Theme["Outline"],
-                    BackgroundTransparency = 0.35,
-                    ClipsDescendants = true,
-                    ZIndex = 2
-                }):AddToTheme({ BackgroundColor3 = 'Outline' })
-
-                Items["ScanBar"] = Library:Create("Frame", {
-                    Name = "\0",
-                    Parent = Items["ScanTrack"].Instance,
-                    Position = UDim2.new(0, -28, 0, 0),
-                    Size = UDim2.new(0, 28, 1, 0),
-                    BorderSizePixel = 0,
-                    BackgroundColor3 = Library.Theme["Accent"],
-                    ZIndex = 3
-                }):AddToTheme({ BackgroundColor3 = 'Accent' })
-
-                Library:Create("UIGradient", {
-                    Name = "\0",
-                    Parent = Items["ScanBar"].Instance,
-                    Transparency = NumberSequence.new {
-                        NumberSequenceKeypoint.new(0, 1),
-                        NumberSequenceKeypoint.new(0.35, 0),
-                        NumberSequenceKeypoint.new(0.65, 0),
-                        NumberSequenceKeypoint.new(1, 1),
-                    }
-                })
-
-                Items["LiveGlow"] = Library:Create("Frame", {
-                    Name = "\0",
-                    Parent = Items["TargetIndicator"].Instance,
-                    AnchorPoint = Vector2.new(1, 0),
-                    Position = UDim2.new(1, -7, 0, 7),
-                    Size = UDim2.new(0, 10, 0, 10),
-                    BorderSizePixel = 0,
-                    BackgroundColor3 = Library.Theme["Accent"],
-                    BackgroundTransparency = 0.55,
-                    ZIndex = 6
-                })
-
-                Library:Create("UICorner", {
-                    Name = "\0",
-                    Parent = Items["LiveGlow"].Instance,
-                    CornerRadius = UDim.new(1, 0)
-                })
-
-                Items["LiveOrb"] = Library:Create("Frame", {
-                    Name = "\0",
-                    Parent = Items["LiveGlow"].Instance,
-                    AnchorPoint = Vector2.new(0.5, 0.5),
-                    Position = UDim2.new(0.5, 0, 0.5, 0),
-                    Size = UDim2.new(0, 6, 0, 6),
-                    BorderSizePixel = 0,
-                    BackgroundColor3 = Library.Theme["Accent"],
-                    ZIndex = 5
-                }):AddToTheme({ BackgroundColor3 = 'Accent' })
-
-                Library:Create("UICorner", {
-                    Name = "\0",
-                    Parent = Items["LiveOrb"].Instance,
-                    CornerRadius = UDim.new(1, 0)
-                })
-
-                Library:Create("UIGradient", {
-                    Name = "\0",
-                    Parent = Items["LiveOrb"].Instance,
-                    Rotation = 45,
-                    Color = ColorSequence.new {
-                        ColorSequenceKeypoint.new(0, Color3.fromRGB(200, 220, 255)),
-                        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(152, 188, 255)),
-                        ColorSequenceKeypoint.new(1, Color3.fromRGB(90, 130, 220)),
-                    }
-                })
-            end
-
-            local function RefreshBranding()
-                Items["Name"].Instance.Text = "Artefact"
-                Items["Subtitle"].Instance.Text = "by @qlnt"
-                Items["StatusLine"].Instance.Text = "active"
-            end
-
-            Library:Connect(RunService.RenderStepped, function(DeltaTime)
-                if not Items["TargetIndicator"] or not Items["TargetIndicator"].Instance.Visible then
-                    return
-                end
-
-                ScanTime += DeltaTime
-                StatusTick += DeltaTime
-
-                local TrackWidth = Items["ScanTrack"].Instance.AbsoluteSize.X
-                local BarWidth = Items["ScanBar"].Instance.AbsoluteSize.X
-                local Travel = math.max(TrackWidth + BarWidth, 1)
-                local Progress = (ScanTime % 2.2) / 2.2
-
-                Items["ScanBar"].Instance.Position = UDim2.new(0, math.floor((Travel * Progress) - BarWidth), 0, 0)
-
-                if StatusTick >= 0.5 then
-                    StatusTick = 0
-                    local Fps = math.floor(1 / math.max(DeltaTime, 0.001))
-                    Items["StatusLine"].Instance.Text = string.format("active · %dfps", Fps)
-                end
-            end)
+            Library:Create("Frame", {
+                Name = "\0",
+                Parent = Items["TargetIndicator"].Instance,
+                Size = UDim2.new(1, 0, 0, 1),
+                BorderSizePixel = 0,
+                BackgroundColor3 = Library.Theme["Accent"]
+            }):AddToTheme({ BackgroundColor3 = 'Accent' })
 
             function Indicator:SetVisibility(Bool)
                 Items["TargetIndicator"].Instance.Visible = Bool
@@ -4653,41 +4433,19 @@ do
             function Indicator:ResetConnection()
             end
 
-            function Indicator:SetTarget(_Target)
-                RefreshBranding()
-                return false
+            function Indicator:SetTarget(_TargetData)
             end
 
-            function Indicator:AddItem(Text)
-                return Library:Create("TextLabel", {
-                    Name = "\0",
-                    FontFace = Library.Font,
-                    TextSize = Library.FontSize,
-                    Parent = Items["Stuff"].Instance,
-                    TextColor3 = Library.Theme["Inactive Text"],
-                    Text = Text,
-                    Size = UDim2.new(1, 0, 0, 13),
-                    BackgroundTransparency = 1,
-                    TextXAlignment = Enum.TextXAlignment.Left,
-                    BorderSizePixel = 0,
-                    LayoutOrder = 3
-                }):AddToTheme({ TextColor3 = 'Inactive Text' })
+            function Indicator:Refresh()
             end
 
-            Library:Thread(function()
-                while Items["TargetIndicator"] and Items["TargetIndicator"].Instance.Parent do
-                    local Pulse = (math.sin(tick() * 3.4) + 1) / 2
-                    Items["LiveOrb"].Instance.BackgroundTransparency = Pulse * 0.2
-                    Items["LiveGlow"].Instance.BackgroundTransparency = 0.5 + (Pulse * 0.35)
-                    task.wait(0.04)
-                end
-            end)
+            function Indicator:AddItem(_Text)
+            end
 
             Library:RegisterLayout("TargetIndicator", {
                 Instance = Items["TargetIndicator"].Instance
             })
 
-            RefreshBranding()
             Indicator:Center()
 
             return Indicator
