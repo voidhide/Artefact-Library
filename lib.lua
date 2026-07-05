@@ -438,10 +438,26 @@ do
             Self.Instance.Visible = true
         end
 
-        local NewTween
-
         local Children = Self.Instance:GetDescendants()
         table.insert(Children, Self.Instance)
+
+        local Pending = 0
+        local Finished = false
+
+        local function Done()
+            if Finished then
+                return
+            end
+            Pending -= 1
+            if Pending > 0 then
+                return
+            end
+            Finished = true
+            Self.Instance.Visible = Visibility
+            if Callback then
+                Library:SafeCall(Callback)
+            end
+        end
 
         for _, Child in Children do
             local TransparencyProperty = Library:GetTweenProperty(Child)
@@ -450,22 +466,31 @@ do
                 continue
             end
 
+            local function QueueFade(Property)
+                Pending += 1
+                local Tween = Library:Fade(Property, Visibility, Child)
+                if Tween then
+                    Library:Connect(Tween.Completed, Done)
+                else
+                    Done()
+                end
+            end
+
             if type(TransparencyProperty) == "table" then
                 for _, Property in TransparencyProperty do
-                    NewTween = Library:Fade(Property, Visibility, Child)
+                    QueueFade(Property)
                 end
             else
-                NewTween = Library:Fade(TransparencyProperty, Visibility, Child)
+                QueueFade(TransparencyProperty)
             end
         end
 
-        Library:Connect(NewTween.Completed, function()
-            if Callback and type(Callback) == "function" then
-                Callback()
-            end
-
+        if Pending == 0 then
             Self.Instance.Visible = Visibility
-        end)
+            if Callback then
+                Library:SafeCall(Callback)
+            end
+        end
     end
 
     Library.MakeDraggable = function(Self)
@@ -6022,7 +6047,7 @@ do
                 Items["Title"].Instance.Text = Data.Title
                 Items["Artist"].Instance.Text = Data.Artist
                 Items["Album"].Instance.Text = Data.Album
-                Items["Cover"].Instance.Image = Data.Cover or PlaceholderImage
+                Items["Cover"].Instance.Image = SpotifyImageId(Data.Cover)
                 SetControlState(Data)
 
                 if not Seeking then
@@ -6155,11 +6180,18 @@ do
 
                 if isfile(Path) then
                     local AssetSuccess, Asset = pcall(GetCustomAsset, Path)
-                    if AssetSuccess then
+                    if AssetSuccess and type(Asset) == "string" and Asset ~= "" then
                         return Asset
                     end
                 end
 
+                return PlaceholderImage
+            end
+
+            local function SpotifyImageId(Value)
+                if type(Value) == "string" and Value ~= "" then
+                    return Value
+                end
                 return PlaceholderImage
             end
 
@@ -6335,7 +6367,7 @@ do
 
                     if Result then
                         Button.Frame.Instance.Visible = true
-                        Button.Cover.Instance.Image = Result.Cover or PlaceholderImage
+                        Button.Cover.Instance.Image = SpotifyImageId(Result.Cover)
                         Button.Title.Instance.Text = Result.Title
                         if Result.IsBack then
                             Button.Album.Instance.Text = Result.Album or "Return to search results"
@@ -7918,7 +7950,7 @@ do
                 Items["Page"]:FadeDescendants(Bool, function()
                     Debounce = false
 
-                    if Items["Page"].Instance.Visible then
+                    if Bool then
                         Items["Page"].Instance.Parent = Page.Window.Items["Content"].Instance
                     else
                         Items["Page"].Instance.Parent = Library.UnusedHolder.Instance
@@ -8072,7 +8104,7 @@ do
                 Items["Page"]:FadeDescendants(Bool, function()
                     Debounce = false
 
-                    if Items["Page"].Instance.Visible then
+                    if Bool then
                         Items["Page"].Instance.Parent = Page.Page.Items["Columns"].Instance
                     else
                         Items["Page"].Instance.Parent = Library.UnusedHolder.Instance
