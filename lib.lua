@@ -6030,6 +6030,13 @@ do
                 Items["QueueScroll"].Instance.CanvasPosition = Vector2.new()
             end
 
+            local function SpotifyImageId(Value)
+                if type(Value) == "string" and Value ~= "" then
+                    return Value
+                end
+                return PlaceholderImage
+            end
+
             local function SetDisplay(Data, EmptyText)
                 if not Data then
                     CurrentTrack = nil
@@ -6185,13 +6192,6 @@ do
                     end
                 end
 
-                return PlaceholderImage
-            end
-
-            local function SpotifyImageId(Value)
-                if type(Value) == "string" and Value ~= "" then
-                    return Value
-                end
                 return PlaceholderImage
             end
 
