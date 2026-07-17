@@ -9,7 +9,6 @@
         None
 ]]
 
--- hi guys
 
 if getgenv().Library and getgenv().Library.Exit then
     getgenv().Library:Exit()
@@ -18,7 +17,6 @@ end
 -- Bad executor support (atleast by a bit)
 cloneref = cloneref or function(Object) return Object end
 
---#region Services
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -29,16 +27,13 @@ local Lighting = game:GetService("Lighting")
 local ContextActionService = game:GetService("ContextActionService")
 local CoreGui = cloneref(game:GetService("CoreGui"))
 local GuiService = game:GetService("GuiService")
---#endregion
 
 gethui = gethui or function() return CoreGui end
 
---#region Variables
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 local Mouse = cloneref(LocalPlayer:GetMouse())
 local GuiInset = GuiService:GetGuiInset().Y
---#endregion
 
 local Library = {
     Flags = {},
@@ -60,7 +55,6 @@ local Library = {
 
     Theme = nil,
 
-    -- Ignore below
     Threads = {},
     Connections = {},
     Notifications = {},
@@ -170,7 +164,6 @@ do
         ["RightAlt"]         = "RightAlt"
     }
 
-    -- Folders
     if not isfolder(Library.Directory) then
         makefolder(Library.Directory)
     end
@@ -200,7 +193,6 @@ do
 
     Library.Theme = Themes.Preset
 
-    -- Custom Font
     local CustomFont = {}
     do
         function CustomFont:New(Name, Weight, Style, Data)
@@ -818,7 +810,6 @@ do
             return
         end
 
-        -- Only sink mouse/gamepad camera controls — never keyboard (WASD / jump / etc).
         ContextActionService:BindActionAtPriority(Self.InputBlockAction, function(_, State, Input)
             if State ~= Enum.UserInputState.Begin and State ~= Enum.UserInputState.Change then
                 return Enum.ContextActionResult.Pass
@@ -2171,7 +2162,7 @@ do
                 elseif type(Color) == "string" then
                     Color = Color3.fromHex(Color)
                 else
-                    Color = Color -- lul
+                    Color = Color 
                 end
 
                 Colorpicker.Hue, Colorpicker.Saturation, Colorpicker.Value = Color:ToHSV()
@@ -3811,7 +3802,6 @@ do
                 local MainPos = MainWindow.Position
                 local MainSize = MainWindow.AbsoluteSize
 
-                -- Match main window width, keep logger shorter, and place it clearly below the main window.
                 Frame.Size = UDim2.new(0, MainSize.X, 0, 220)
                 Frame.Position = UDim2.new(0, MainPos.X.Offset, 0, MainPos.Y.Offset + MainSize.Y + 10)
             end
@@ -5937,7 +5927,6 @@ do
                     Padding = UDim.new(0, 2)
                 })
 
-                -- Spotify order: shuffle · previous · play/pause · next · repeat
                 CreateControlButton("Shuffle", Items["Controls"].Instance, "rbxassetid://9607545176", 18, 11, 0)
                 CreateControlButton("Previous", Items["Controls"].Instance, "rbxassetid://3926305904", 18, 12, 0)
                 CreateControlButton("PlayPause", Items["Controls"].Instance, "rbxassetid://9622475855", 22, 18, 0)
@@ -9467,11 +9456,6 @@ do
             end
 
             function Dropdown:Refresh(List)
-                if Dropdown.IsOpen then
-                    Dropdown._pendingRefresh = List
-                    return
-                end
-
                 local toRemove = {}
                 for name in pairs(Dropdown.Options) do
                     table.insert(toRemove, name)
@@ -9481,10 +9465,39 @@ do
                 end
 
                 if type(List) == "table" then
+                    local added = {}
                     for _, Value in ipairs(List) do
-                        Dropdown:Add(Value)
+                        if type(Value) == "string" and Value ~= "" and not added[Value] then
+                            added[Value] = true
+                            Dropdown:Add(Value)
+                        end
+                    end
+                    for key, Value in pairs(List) do
+                        if Value == true and type(key) == "string" and key ~= "" and not added[key] then
+                            added[key] = true
+                            Dropdown:Add(key)
+                        elseif type(Value) == "string" and Value ~= "" and not added[Value] and type(key) == "number" then
+                        end
                     end
                 end
+
+                if Dropdown.IsOpen then
+                    for _, opt in pairs(Dropdown.Options) do
+                        local btn = opt.Button and opt.Button.Instance
+                        if btn then
+                            btn.TextTransparency = 0
+                            btn.BackgroundTransparency = 1
+                            btn.ZIndex = 3
+                        end
+                    end
+                    if Items["OptionScroll"] then
+                        local scroll = Items["OptionScroll"].Instance
+                        scroll.BackgroundTransparency = 1
+                        scroll.ScrollBarImageTransparency = 0
+                        scroll.ZIndex = 3
+                    end
+                end
+
                 if type(Dropdown.UpdateListSize) == "function" then
                     Dropdown:UpdateListSize()
                 end
@@ -9546,7 +9559,6 @@ do
                     OptionHolder.Parent = Library.Holder.Instance
                     OptionHolder.Visible = true
 
-                    -- Instant show (FadeDescendants left option text at TextTransparency=1)
                     for _, opt in pairs(Dropdown.Options) do
                         local btn = opt.Button and opt.Button.Instance
                         if btn then
@@ -9590,14 +9602,6 @@ do
                         RenderStepped:Disconnect()
                         RenderStepped = nil
                     end
-
-                    if Dropdown._pendingRefresh then
-                        local pending = Dropdown._pendingRefresh
-                        Dropdown._pendingRefresh = nil
-                        task.defer(function()
-                            Dropdown:Refresh(pending)
-                        end)
-                    end
                 end
 
                 local Descendants = OptionHolder:GetDescendants()
@@ -9634,16 +9638,6 @@ do
 
             Items["RealDropdown"]:Connect("Changed", function(Property)
                 if Property == "AbsolutePosition" and Dropdown.IsOpen and Dropdown.CanUpdateNow then
-                    local Section = Dropdown.Section
-                    local SectionItem = Section and Section.Items and Section.Items["Section"]
-                    local SectionInstance = SectionItem and SectionItem.Instance
-                    local SectionParent = SectionInstance and SectionInstance.Parent
-
-                    if SectionParent and Items["OptionHolder"]:IsClipped(SectionParent) then
-                        Dropdown:SetOpen(false)
-                        return
-                    end
-
                     OptionHolder.Position = UDim2.new(0, RealDropdown.AbsolutePosition.X, 0,
                         RealDropdown.AbsolutePosition.Y + RealDropdown.AbsoluteSize.Y + 10 + GuiInset)
                     OptionHolder.Size = UDim2.new(0, RealDropdown.AbsoluteSize.X, 0, OptionHolder.Size.Y.Offset)
@@ -9930,7 +9924,7 @@ do
             return setmetatable(Textbox, Library)
         end
 
-        Library.Searchbox = function(Self, Params) -- just the dropdown func with diff items
+        Library.Searchbox = function(Self, Params) 
             Params = Params or {}
 
             local Dropdown = {
