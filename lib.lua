@@ -5922,8 +5922,8 @@ do
                     Parent = Items["PlayerArea"].Instance,
                     BackgroundTransparency = 1,
                     AnchorPoint = Vector2.new(1, 0.5),
-                    Position = UDim2.new(1, -18, 0.5, 12),
-                    Size = UDim2.new(0, 96, 0, 24),
+                    Position = UDim2.new(1, -10, 0.5, 12),
+                    Size = UDim2.new(0, 132, 0, 24),
                     BorderSizePixel = 0
                 })
 
@@ -5932,13 +5932,17 @@ do
                     Parent = Items["Controls"].Instance,
                     FillDirection = Enum.FillDirection.Horizontal,
                     HorizontalAlignment = Enum.HorizontalAlignment.Center,
+                    VerticalAlignment = Enum.VerticalAlignment.Center,
                     SortOrder = Enum.SortOrder.LayoutOrder,
-                    Padding = UDim.new(0, 4)
+                    Padding = UDim.new(0, 2)
                 })
 
-                CreateControlButton("Shuffle", Items["Controls"].Instance, "rbxassetid://9607545176", 12, 12, 0)
-                CreateControlButton("PlayPause", Items["Controls"].Instance, "rbxassetid://9622475855", 20, 20, 0)
-                CreateControlButton("Repeat", Items["Controls"].Instance, "rbxassetid://9607545605", 12, 12, 0)
+                -- Spotify order: shuffle · previous · play/pause · next · repeat
+                CreateControlButton("Shuffle", Items["Controls"].Instance, "rbxassetid://9607545176", 18, 11, 0)
+                CreateControlButton("Previous", Items["Controls"].Instance, "rbxassetid://3926305904", 18, 12, 0)
+                CreateControlButton("PlayPause", Items["Controls"].Instance, "rbxassetid://9622475855", 22, 18, 0)
+                CreateControlButton("Next", Items["Controls"].Instance, "rbxassetid://3926307971", 18, 12, 0)
+                CreateControlButton("Repeat", Items["Controls"].Instance, "rbxassetid://9607545605", 18, 11, 0)
 
                 Items["ExpandButton"] = Library:Create("ImageButton", {
                     Name = "\0",
@@ -6652,6 +6656,16 @@ do
                     Resume()
                 end
 
+                RefreshSoon()
+            end)
+
+            Items["Previous"]:Connect("MouseButton1Click", function()
+                Previous()
+                RefreshSoon()
+            end)
+
+            Items["Next"]:Connect("MouseButton1Click", function()
+                Next()
                 RefreshSoon()
             end)
 
@@ -9453,12 +9467,23 @@ do
             end
 
             function Dropdown:Refresh(List)
-                for Index, Value in Dropdown.Options do
-                    Dropdown:Remove(Value.Name)
+                if Dropdown.IsOpen then
+                    Dropdown._pendingRefresh = List
+                    return
                 end
 
-                for Index, Value in List do
-                    Dropdown:Add(Value)
+                local toRemove = {}
+                for name in pairs(Dropdown.Options) do
+                    table.insert(toRemove, name)
+                end
+                for _, name in ipairs(toRemove) do
+                    Dropdown:Remove(name)
+                end
+
+                if type(List) == "table" then
+                    for _, Value in ipairs(List) do
+                        Dropdown:Add(Value)
+                    end
                 end
                 if type(Dropdown.UpdateListSize) == "function" then
                     Dropdown:UpdateListSize()
@@ -9515,23 +9540,36 @@ do
                     Items["Icon"]:Tween({ Rotation = -90 })
                     Dropdown:UpdateListSize()
                     OptionHolder.Position = UDim2.new(0, RealDropdown.AbsolutePosition.X, 0,
-                        RealDropdown.AbsolutePosition.Y + RealDropdown.AbsoluteSize.Y + GuiInset)
+                        RealDropdown.AbsolutePosition.Y + RealDropdown.AbsoluteSize.Y + 10 + GuiInset)
                     OptionHolder.Size = UDim2.new(0, RealDropdown.AbsoluteSize.X, 0, OptionHolder.Size.Y.Offset)
 
                     OptionHolder.Parent = Library.Holder.Instance
                     OptionHolder.Visible = true
-                    Items["OptionHolder"]:Tween({
-                        Position = UDim2.new(0, RealDropdown.AbsolutePosition.X, 0,
-                            RealDropdown.AbsolutePosition.Y + RealDropdown.AbsoluteSize.Y + 10 + GuiInset)
-                    })
 
-                    Items["OptionHolder"]:FadeDescendants(true, function()
-                        Debounce = false
-                        Dropdown.CanUpdateNow = true
-                    end)
+                    -- Instant show (FadeDescendants left option text at TextTransparency=1)
+                    for _, opt in pairs(Dropdown.Options) do
+                        local btn = opt.Button and opt.Button.Instance
+                        if btn then
+                            btn.TextTransparency = 0
+                            btn.BackgroundTransparency = 1
+                            btn.ZIndex = 3
+                        end
+                    end
+                    if Items["OptionScroll"] then
+                        local scroll = Items["OptionScroll"].Instance
+                        scroll.BackgroundTransparency = 1
+                        scroll.ScrollBarImageTransparency = 0
+                        scroll.ZIndex = 3
+                    end
+                    OptionHolder.BackgroundTransparency = 0
+                    OptionHolder.TextTransparency = 1
+                    OptionHolder.ZIndex = 3
+
+                    Debounce = false
+                    Dropdown.CanUpdateNow = true
 
                     for Index, Value in Library.OpenFrames do
-                        if not Params.Parent and not Dropdown.Section.IsSettings then
+                        if Value ~= Dropdown and not Params.Parent and not Dropdown.Section.IsSettings then
                             Value:SetOpen(false)
                         end
                     end
@@ -9539,15 +9577,10 @@ do
                     Library.OpenFrames[Dropdown] = Dropdown
                 else
                     Items["Icon"]:Tween({ Rotation = 0 })
-                    Items["OptionHolder"]:Tween({
-                        Position = UDim2.new(0, RealDropdown.AbsolutePosition.X, 0,
-                            RealDropdown.AbsolutePosition.Y + RealDropdown.AbsoluteSize.Y - 10 + GuiInset)
-                    })
-                    Items["OptionHolder"]:FadeDescendants(false, function()
-                        OptionHolder.Parent = Library.UnusedHolder.Instance
-                        Debounce = false
-                        Dropdown.CanUpdateNow = false
-                    end)
+                    OptionHolder.Visible = false
+                    OptionHolder.Parent = Library.UnusedHolder.Instance
+                    Debounce = false
+                    Dropdown.CanUpdateNow = false
 
                     if Library.OpenFrames[Dropdown] then
                         Library.OpenFrames[Dropdown] = nil
@@ -9556,6 +9589,14 @@ do
                     if RenderStepped then
                         RenderStepped:Disconnect()
                         RenderStepped = nil
+                    end
+
+                    if Dropdown._pendingRefresh then
+                        local pending = Dropdown._pendingRefresh
+                        Dropdown._pendingRefresh = nil
+                        task.defer(function()
+                            Dropdown:Refresh(pending)
+                        end)
                     end
                 end
 
@@ -9592,18 +9633,20 @@ do
             end)
 
             Items["RealDropdown"]:Connect("Changed", function(Property)
-                if Property == "AbsolutePosition" and Dropdown.IsOpen then
+                if Property == "AbsolutePosition" and Dropdown.IsOpen and Dropdown.CanUpdateNow then
                     local Section = Dropdown.Section
                     local SectionItem = Section and Section.Items and Section.Items["Section"]
                     local SectionInstance = SectionItem and SectionItem.Instance
                     local SectionParent = SectionInstance and SectionInstance.Parent
 
-                    if SectionParent then
-                        Dropdown.IsOpen = not Items["OptionHolder"]:IsClipped(SectionParent)
-                    else
-                        Dropdown.IsOpen = false
+                    if SectionParent and Items["OptionHolder"]:IsClipped(SectionParent) then
+                        Dropdown:SetOpen(false)
+                        return
                     end
-                    Items["OptionHolder"].Instance.Visible = Dropdown.IsOpen
+
+                    OptionHolder.Position = UDim2.new(0, RealDropdown.AbsolutePosition.X, 0,
+                        RealDropdown.AbsolutePosition.Y + RealDropdown.AbsoluteSize.Y + 10 + GuiInset)
+                    OptionHolder.Size = UDim2.new(0, RealDropdown.AbsoluteSize.X, 0, OptionHolder.Size.Y.Offset)
                 end
             end)
 
