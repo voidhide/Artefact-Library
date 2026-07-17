@@ -1,5 +1,5 @@
 --[[
-    7/2/2026
+    17/2/2026
     Library.lua
     Purpose:
         NH ui library
@@ -38,45 +38,6 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 local Mouse = cloneref(LocalPlayer:GetMouse())
 local GuiInset = GuiService:GetGuiInset().Y
-local BlockedWindowInputs = {
-    Enum.KeyCode.W,
-    Enum.KeyCode.A,
-    Enum.KeyCode.S,
-    Enum.KeyCode.D,
-    Enum.KeyCode.Space,
-    Enum.KeyCode.LeftShift,
-    Enum.KeyCode.RightShift,
-    Enum.KeyCode.LeftControl,
-    Enum.KeyCode.RightControl,
-    Enum.KeyCode.LeftAlt,
-    Enum.KeyCode.RightAlt,
-    Enum.KeyCode.Up,
-    Enum.KeyCode.Down,
-    Enum.KeyCode.Left,
-    Enum.KeyCode.Right,
-    Enum.KeyCode.Return,
-    Enum.KeyCode.KeypadEnter,
-    Enum.KeyCode.Slash,
-    Enum.KeyCode.Backquote,
-    Enum.KeyCode.Tab,
-    Enum.KeyCode.E,
-    Enum.KeyCode.Q,
-    Enum.KeyCode.R,
-    Enum.KeyCode.F,
-    Enum.KeyCode.C,
-    Enum.KeyCode.Z,
-    Enum.KeyCode.X,
-    Enum.KeyCode.One,
-    Enum.KeyCode.Two,
-    Enum.KeyCode.Three,
-    Enum.KeyCode.Four,
-    Enum.KeyCode.Five,
-    Enum.KeyCode.Six,
-    Enum.KeyCode.Seven,
-    Enum.KeyCode.Eight,
-    Enum.KeyCode.Nine,
-    Enum.KeyCode.Zero
-}
 --#endregion
 
 local Library = {
@@ -495,6 +456,16 @@ do
         end
     end
 
+    Library.RestoreWindowMouseState = function(Self)
+        if not Self.WindowOpenState then
+            return
+        end
+
+        UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+        UserInputService.MouseIconEnabled = false
+        Self:ApplyWindowInputState(true)
+    end
+
     Library.MakeDraggable = function(Self)
         if not Self.Instance then
             return
@@ -504,6 +475,22 @@ do
         local Dragging = false
         local DragStart
         local StartPosition
+        local InputChanged
+
+        local EndDrag = function()
+            if not Dragging then
+                return
+            end
+
+            Dragging = false
+
+            if InputChanged then
+                InputChanged:Disconnect()
+                InputChanged = nil
+            end
+
+            Library:RestoreWindowMouseState()
+        end
 
         local Set = function(Input)
             local DragDelta = Input.Position - DragStart
@@ -555,8 +542,6 @@ do
             Gui.Position = UDim2.new(0, math.floor(NewX + 0.5), 0, math.floor(NewY + 0.5))
         end
 
-        local InputChanged
-
         Self:Connect("InputBegan", function(Input)
             if not Library.WindowOpenState then
                 return
@@ -568,23 +553,34 @@ do
                 StartPosition = Gui.Position
 
                 if InputChanged then
-                    return
+                    InputChanged:Disconnect()
+                    InputChanged = nil
                 end
 
                 InputChanged = Input.Changed:Connect(function()
                     if Input.UserInputState == Enum.UserInputState.End then
-                        Dragging = false
-                        InputChanged:Disconnect()
-                        InputChanged = nil
+                        EndDrag()
                     end
                 end)
+            end
+        end)
+
+        Self:Connect("InputEnded", function(Input)
+            if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
+                EndDrag()
+            end
+        end)
+
+        Library:Connect(UserInputService.InputEnded, function(Input)
+            if Dragging and (Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch) then
+                EndDrag()
             end
         end)
 
         Library:Connect(UserInputService.InputChanged, function(Input)
             if Input.UserInputType == Enum.UserInputType.MouseMovement or Input.UserInputType == Enum.UserInputType.Touch then
                 if Dragging and not Library.WindowOpenState then
-                    Dragging = false
+                    EndDrag()
                     return
                 end
 
@@ -679,12 +675,18 @@ do
         end
 
         local EndResizing = function()
+            if not Resizing then
+                return
+            end
+
             Resizing = false
             CurrentSide = nil
 
             for Index, Value in Edges do
                 Value.Button.Instance.BackgroundTransparency = 1
             end
+
+            Library:RestoreWindowMouseState()
         end
 
         for Index, Value in Edges do
@@ -809,51 +811,42 @@ do
             Self.InputBlocker.Instance.Visible = Bool and true or false
         end
 
-        if Bool then
-            ContextActionService:BindActionAtPriority(Self.InputBlockAction, function(_, State, Input)
-                    if State ~= Enum.UserInputState.Begin and State ~= Enum.UserInputState.Change then
-                        return Enum.ContextActionResult.Pass
-                    end
+        ContextActionService:UnbindAction(Self.InputBlockAction)
+        ContextActionService:UnbindAction(Self.InputBlockAction .. "_KEYS")
 
-                    if not Self.WindowOpenState or UserInputService:GetFocusedTextBox() then
-                        return Enum.ContextActionResult.Pass
-                    end
-
-                    if Input and (tostring(Input.KeyCode) == Self.MenuKeybind or tostring(Input.UserInputType) == Self.MenuKeybind) then
-                        return Enum.ContextActionResult.Pass
-                    end
-
-                    return Enum.ContextActionResult.Sink
-                end, false, 5000,
-                Enum.UserInputType.Gamepad1,
-                Enum.UserInputType.Gamepad2,
-                Enum.UserInputType.Gamepad3,
-                Enum.UserInputType.Gamepad4,
-                Enum.UserInputType.Gamepad5,
-                Enum.UserInputType.Gamepad6,
-                Enum.UserInputType.Gamepad7,
-                Enum.UserInputType.Gamepad8,
-                Enum.UserInputType.MouseWheel,
-                Enum.UserInputType.MouseButton2,
-                Enum.UserInputType.MouseButton3
-            )
-
-            ContextActionService:BindActionAtPriority(Self.InputBlockAction .. "_KEYS", function(_, State)
-                if State ~= Enum.UserInputState.Begin and State ~= Enum.UserInputState.Change then
-                    return Enum.ContextActionResult.Pass
-                end
-
-                if not Self.WindowOpenState or UserInputService:GetFocusedTextBox() then
-                    return Enum.ContextActionResult.Pass
-                end
-
-                return Enum.ContextActionResult.Sink
-            end, false, 5000, table.unpack(BlockedWindowInputs))
+        if not Bool then
             return
         end
 
-        ContextActionService:UnbindAction(Self.InputBlockAction)
-        ContextActionService:UnbindAction(Self.InputBlockAction .. "_KEYS")
+        -- Only sink mouse/gamepad camera controls — never keyboard (WASD / jump / etc).
+        ContextActionService:BindActionAtPriority(Self.InputBlockAction, function(_, State, Input)
+            if State ~= Enum.UserInputState.Begin and State ~= Enum.UserInputState.Change then
+                return Enum.ContextActionResult.Pass
+            end
+
+            if not Self.WindowOpenState or UserInputService:GetFocusedTextBox() then
+                return Enum.ContextActionResult.Pass
+            end
+
+            if Input and (tostring(Input.KeyCode) == Self.MenuKeybind or tostring(Input.UserInputType) == Self.MenuKeybind) then
+                return Enum.ContextActionResult.Pass
+            end
+
+            return Enum.ContextActionResult.Sink
+        end, false, 5000,
+            Enum.UserInputType.Gamepad1,
+            Enum.UserInputType.Gamepad2,
+            Enum.UserInputType.Gamepad3,
+            Enum.UserInputType.Gamepad4,
+            Enum.UserInputType.Gamepad5,
+            Enum.UserInputType.Gamepad6,
+            Enum.UserInputType.Gamepad7,
+            Enum.UserInputType.Gamepad8,
+            Enum.UserInputType.MouseWheel,
+            Enum.UserInputType.MouseButton2,
+            Enum.UserInputType.MouseButton3,
+            Enum.UserInputType.MouseMovement
+        )
     end
 
     Library.SetWindowVisibilityState = function(Self, Bool)
@@ -9045,6 +9038,8 @@ do
                 if Scroll then
                     Scroll.ScrollingEnabled = true
                 end
+
+                Library:RestoreWindowMouseState()
             end
 
             function Slider:UpdateSlide(Input)
