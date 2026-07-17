@@ -9117,6 +9117,7 @@ do
                 Default = Params.Default or Params.default or "",
                 Callback = Params.Callback or Params.callback or function() end,
                 Multi = Params.Multi or Params.multi or false,
+                MaxSize = Params.MaxSize or Params.maxSize or 160,
 
                 Window = Self.Window,
                 Page = Self.Page,
@@ -9244,7 +9245,7 @@ do
                     Size = UDim2.new(0, 210, 0, 50),
                     Position = UDim2.new(0, 1056, 0, 521),
                     BorderSizePixel = 0,
-                    AutomaticSize = Enum.AutomaticSize.Y,
+                    ClipsDescendants = true,
                     BackgroundColor3 = Library.Theme["Background"]
                 }):AddToTheme({ BackgroundColor3 = 'Background' })
 
@@ -9265,18 +9266,33 @@ do
                     BorderOffset = UDim.new(0, 1)
                 }):AddToTheme({ Color = 'Border' })
 
-                Library:Create("UIListLayout", {
+                Items["OptionScroll"] = Library:Create("ScrollingFrame", {
                     Name = "\0",
                     Parent = Items["OptionHolder"].Instance,
+                    BackgroundTransparency = 1,
+                    BorderSizePixel = 0,
+                    Size = UDim2.new(1, 0, 1, 0),
+                    CanvasSize = UDim2.new(0, 0, 0, 0),
+                    AutomaticCanvasSize = Enum.AutomaticSize.Y,
+                    ScrollBarThickness = 3,
+                    ScrollBarImageColor3 = Library.Theme["Accent"],
+                    ScrollingDirection = Enum.ScrollingDirection.Y,
+                    Active = true
+                }):AddToTheme({ ScrollBarImageColor3 = 'Accent' })
+
+                Library:Create("UIListLayout", {
+                    Name = "\0",
+                    Parent = Items["OptionScroll"].Instance,
                     Padding = UDim.new(0, 3),
                     SortOrder = Enum.SortOrder.LayoutOrder
                 })
 
                 Library:Create("UIPadding", {
                     Name = "\0",
-                    Parent = Items["OptionHolder"].Instance,
+                    Parent = Items["OptionScroll"].Instance,
                     PaddingTop = UDim.new(0, 4),
                     PaddingLeft = UDim.new(0, 8),
+                    PaddingRight = UDim.new(0, 6),
                     PaddingBottom = UDim.new(0, 6)
                 })
 
@@ -9341,14 +9357,14 @@ do
                     Name = "\0",
                     FontFace = Library.Font,
                     TextSize = Library.FontSize,
-                    Parent = Items["OptionHolder"].Instance,
+                    Parent = Items["OptionScroll"].Instance,
                     TextColor3 = Library.Theme["Text"],
                     Text = Value,
                     AutoButtonColor = false,
                     BackgroundTransparency = 1,
-                    Size = UDim2.new(0, 0, 0, 15),
+                    Size = UDim2.new(1, -14, 0, 15),
                     BorderSizePixel = 0,
-                    AutomaticSize = Enum.AutomaticSize.X
+                    TextXAlignment = Enum.TextXAlignment.Left
                 }):AddToTheme({ TextColor3 = 'Text' })
 
                 local OptionData = {
@@ -9420,6 +9436,9 @@ do
                 end)
 
                 Dropdown.Options[OptionData.Name] = OptionData
+                if type(Dropdown.UpdateListSize) == "function" then
+                    Dropdown:UpdateListSize()
+                end
                 return OptionData
             end
 
@@ -9427,6 +9446,9 @@ do
                 if Dropdown.Options[Option] then
                     Dropdown.Options[Option].Button.Instance:Destroy()
                     Dropdown.Options[Option] = nil
+                    if type(Dropdown.UpdateListSize) == "function" then
+                        Dropdown:UpdateListSize()
+                    end
                 end
             end
 
@@ -9437,6 +9459,9 @@ do
 
                 for Index, Value in List do
                     Dropdown:Add(Value)
+                end
+                if type(Dropdown.UpdateListSize) == "function" then
+                    Dropdown:UpdateListSize()
                 end
             end
 
@@ -9457,6 +9482,26 @@ do
             Dropdown.CanUpdateNow = false
             Dropdown.Frame = OptionHolder
 
+            function Dropdown:UpdateListSize()
+                local count = 0
+                for _ in pairs(Dropdown.Options) do
+                    count += 1
+                end
+                local itemH = 15
+                local pad = 3
+                local chrome = 10
+                local content = chrome + (count * itemH) + (math.max(count - 1, 0) * pad)
+                local height = math.clamp(content, itemH + chrome, Dropdown.MaxSize or 160)
+                local width = RealDropdown.AbsoluteSize.X
+                if width < 1 then
+                    width = OptionHolder.AbsoluteSize.X
+                end
+                if width < 1 then
+                    width = 210
+                end
+                OptionHolder.Size = UDim2.new(0, width, 0, height)
+            end
+
             function Dropdown:SetOpen(Bool)
                 if Debounce then
                     return
@@ -9468,9 +9513,10 @@ do
 
                 if Dropdown.IsOpen then
                     Items["Icon"]:Tween({ Rotation = -90 })
+                    Dropdown:UpdateListSize()
                     OptionHolder.Position = UDim2.new(0, RealDropdown.AbsolutePosition.X, 0,
                         RealDropdown.AbsolutePosition.Y + RealDropdown.AbsoluteSize.Y + GuiInset)
-                    OptionHolder.Size = UDim2.new(0, RealDropdown.AbsoluteSize.X, 0, Dropdown.MaxSize)
+                    OptionHolder.Size = UDim2.new(0, RealDropdown.AbsoluteSize.X, 0, OptionHolder.Size.Y.Offset)
 
                     OptionHolder.Parent = Library.Holder.Instance
                     OptionHolder.Visible = true
@@ -9566,6 +9612,7 @@ do
             end
 
             Dropdown:Set(Dropdown.Default)
+            Dropdown:UpdateListSize()
 
             SetFlags[Dropdown.Flag] = function(Value)
                 Dropdown:Set(Value)
