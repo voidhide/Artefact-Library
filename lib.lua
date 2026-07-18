@@ -3406,7 +3406,7 @@ do
                     BorderSizePixel = 0,
                     ZIndex = 10
                 })
-                Items["Overlay"].Instance.Active = true
+                Items["Overlay"].Instance.Active = false
                 Items["Overlay"].Instance.ZIndex = 10
             end
 
@@ -10708,20 +10708,194 @@ do
         Library.CreateSettingsPage = function(Self)
             local Page = Self:Page({ Name = "Settings", Icon = "rbxassetid://0" })
 
-            local ConfigsSubPage = Page:SubPage({ Name = "Configs" })
-            local OtherSubPage = Page:SubPage({ Name = "Other" })
+            -- Single content page (no Configs/Other/Server/Infos tabs)
+            local MainSubPage = Page:SubPage({ Name = "Main" })
+            if Page.Items and Page.Items["SubPages"] then
+                Page.Items["SubPages"].Instance.Visible = false
+            end
+            if Page.Items and Page.Items["Columns"] then
+                Page.Items["Columns"].Instance.Position = UDim2.new(0, 0, 0, 0)
+                Page.Items["Columns"].Instance.Size = UDim2.new(1, 0, 1, 0)
+            end
 
+            -- 1) Settings (left) + Widgets (right)
+            do
+                local SettingsSection = MainSubPage:Section({ Name = "Settings", Side = 1 })
+                do
+                    SettingsSection:Label({ Name = "UI Bind" }):Keybind({
+                        Flag = "UIBind",
+                        Mode = "Toggle",
+                        Default = Enum.KeyCode.RightShift,
+                        Callback = function(Value)
+                            Library.MenuKeybind = Flags["UIBind"].Key
+                        end
+                    })
+
+                    SettingsSection:Toggle({
+                        Name = "Background Blur",
+                        Flag = "UIBackgroundBlur",
+                        Default = Library.BackgroundBlurEnabled,
+                        Callback = function(Value)
+                            Library:SetBackgroundBlurEnabled(Value)
+                        end
+                    })
+
+                    SettingsSection:Toggle({
+                        Name = "Background Snow",
+                        Flag = "UIBackgroundSnow",
+                        Default = Library.BackgroundSnowEnabled,
+                        Callback = function(Value)
+                            Library:SetBackgroundSnowEnabled(Value)
+                        end
+                    })
+
+                    SettingsSection:Button({
+                        Name = "Unload",
+                        Callback = function()
+                            Library:Exit()
+                        end
+                    })
+
+                    SettingsSection:Slider({
+                        Name = "Animation Speed",
+                        Flag = "AnimationSpeed",
+                        Default = Library.Animation.Time,
+                        Min = 0,
+                        Max = 1.5,
+                        Decimals = .01,
+                        Callback = function(Value)
+                            Library.Animation.Time = Value
+                        end
+                    })
+                end
+
+                local WidgetsSection = MainSubPage:Section({ Name = "Widgets", Side = 2 })
+                do
+                    for _, WidgetData in Library.SettingsWidgets do
+                        local WidgetToggle = WidgetsSection:Toggle({
+                            Name = WidgetData.Name,
+                            Flag = WidgetData.Flag,
+                            Default = WidgetData.Default,
+                            Callback = WidgetData.Callback
+                        })
+
+                        if type(WidgetData.Settings) == "function" then
+                            local WidgetSettings = WidgetToggle:Settings()
+                            WidgetData.Settings(WidgetSettings, WidgetToggle)
+                        end
+                    end
+                end
+            end
+
+            if type(Library.OnBuildSettingsExtras) == "function" then
+                pcall(Library.OnBuildSettingsExtras, MainSubPage, Page)
+            end
+
+            -- 2) Server (left) + Infos (right)
+            do
+                local ServerSec = MainSubPage:Section({ Name = "Server", Side = 1 })
+                ServerSec:Button({
+                    Name = "Rejoin",
+                    Callback = function()
+                        pcall(function()
+                            game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, game.JobId)
+                        end)
+                    end,
+                })
+                ServerSec:Button({
+                    Name = "Copy JobId",
+                    Callback = function()
+                        local job = tostring(game.JobId or "")
+                        if setclipboard then
+                            setclipboard(job)
+                            Library:Notification("jobId copied", 2, Library.Theme["Accent"])
+                        else
+                            Library:Notification(job, 4, Library.Theme["Accent"])
+                        end
+                    end,
+                })
+                ServerSec:Button({
+                    Name = "Copy Join Script",
+                    Callback = function()
+                        local src = string.format(
+                            'game:GetService("TeleportService"):TeleportToPlaceInstance(%s, %q)',
+                            tostring(game.PlaceId),
+                            tostring(game.JobId or "")
+                        )
+                        if setclipboard then
+                            setclipboard(src)
+                            Library:Notification("join script copied", 2, Library.Theme["Accent"])
+                        else
+                            Library:Notification(src, 5, Library.Theme["Accent"])
+                        end
+                    end,
+                })
+
+                local InfoSec = MainSubPage:Section({ Name = "Infos", Side = 2 })
+                local helloLbl = InfoSec:Label({ Name = "hello" })
+                local dateLbl = InfoSec:Label({ Name = "date" })
+                local execLbl = InfoSec:Label({ Name = "executor" })
+                local gameLbl = InfoSec:Label({ Name = "game" })
+                local regionLbl = InfoSec:Label({ Name = "region" })
+
+                local function refreshInfos()
+                    local lp = game:GetService("Players").LocalPlayer
+                    local user = lp and lp.Name or "unknown"
+                    pcall(function()
+                        helloLbl:SetText("hello " .. string.lower(user))
+                    end)
+                    pcall(function()
+                        dateLbl:SetText(os.date("%A %d %B, %H:%M:%S"):lower())
+                    end)
+                    local exec = "unknown"
+                    pcall(function()
+                        if typeof(identifyexecutor) == "function" then
+                            exec = tostring(identifyexecutor())
+                        elseif typeof(getexecutorname) == "function" then
+                            exec = tostring(getexecutorname())
+                        end
+                    end)
+                    pcall(function()
+                        execLbl:SetText("executor : " .. string.lower(exec))
+                    end)
+                    local gname = "unknown"
+                    pcall(function()
+                        local info = game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId)
+                        if info and info.Name then
+                            gname = info.Name
+                        end
+                    end)
+                    pcall(function()
+                        gameLbl:SetText("game : " .. string.lower(gname))
+                    end)
+                    local region = "unknown"
+                    pcall(function()
+                        local fr = getgenv().friday
+                        if fr and fr.ServerRegion and fr.ServerRegion.value then
+                            region = tostring(fr.ServerRegion.value)
+                        end
+                    end)
+                    pcall(function()
+                        regionLbl:SetText("server region : " .. string.lower(region))
+                    end)
+                end
+
+                task.spawn(function()
+                    while true do
+                        refreshInfos()
+                        task.wait(1)
+                    end
+                end)
+            end
+
+            -- 3) Configs (left) + Theming (right) — last, side by side
             do
                 local ConfigName
                 local ConfigSelected
                 local ConfigsFolder = Library.Directory .. Library.Folders.Configs .. "/"
 
-                local ConfigsSection = ConfigsSubPage:Section({ Name = "Configs", Side = 1 })
+                local ConfigsSection = MainSubPage:Section({ Name = "Configs", Side = 1 })
                 do
-                    local ConfigName
-                    local ConfigSelected
-                    local ConfigsFolder = Library.Directory .. Library.Folders.Configs .. "/"
-
                     local ConfigsDropdown = ConfigsSection:Dropdown({
                         Name = "Configs",
                         Flag = "ConfigsDropdown",
@@ -10827,20 +11001,20 @@ do
                                     if Success then
                                         Library:Notification("Succesfully saved config", 3, Color3.fromRGB(0, 255, 0))
                                     else
-                                        Library:Notification("Failed to save config: \n" .. Error, 3,
+                                        Library:Notification("Failed to save config: \n" .. tostring(Error), 3,
                                             Color3.fromRGB(255, 0, 0))
                                     end
                                 end
+                            else
+                                Library:Notification("No config selected", 3, Color3.fromRGB(255, 0, 0))
                             end
                         end
                     })
 
                     Library:GetConfigsList(ConfigsDropdown)
                 end
-            end
 
-            do
-                local ThemingSection = OtherSubPage:Section({ Name = "Theming", Side = 1 })
+                local ThemingSection = MainSubPage:Section({ Name = "Theming", Side = 2 })
                 do
                     for Index, Value in Library.Theme do
                         ThemingSection:Label({ Name = Index }):Colorpicker({
@@ -10853,73 +11027,9 @@ do
                         })
                     end
                 end
-
-                local SettingsSection = OtherSubPage:Section({ Name = "Settings", Side = 2 })
-                do
-                    SettingsSection:Label({ Name = "UI Bind" }):Keybind({
-                        Flag = "UIBind",
-                        Mode = "Toggle",
-                        Default = Enum.KeyCode.RightShift,
-                        Callback = function(Value)
-                            Library.MenuKeybind = Flags["UIBind"].Key
-                        end
-                    })
-
-                    SettingsSection:Toggle({
-                        Name = "Background Blur",
-                        Flag = "UIBackgroundBlur",
-                        Default = Library.BackgroundBlurEnabled,
-                        Callback = function(Value)
-                            Library:SetBackgroundBlurEnabled(Value)
-                        end
-                    })
-
-                    SettingsSection:Toggle({
-                        Name = "Background Snow",
-                        Flag = "UIBackgroundSnow",
-                        Default = Library.BackgroundSnowEnabled,
-                        Callback = function(Value)
-                            Library:SetBackgroundSnowEnabled(Value)
-                        end
-                    })
-
-                    SettingsSection:Button({
-                        Name = "Unload",
-                        Callback = function()
-                            Library:Exit()
-                        end
-                    })
-
-                    SettingsSection:Slider({
-                        Name = "Animation Speed",
-                        Flag = "AnimationSpeed",
-                        Default = Library.Animation.Time,
-                        Min = 0,
-                        Max = 1.5,
-                        Decimals = .01,
-                        Callback = function(Value)
-                            Library.Animation.Time = Value
-                        end
-                    })
-                end
-
-                local WidgetsSection = OtherSubPage:Section({ Name = "Widgets", Side = 2 })
-                do
-                    for _, WidgetData in Library.SettingsWidgets do
-                        local WidgetToggle = WidgetsSection:Toggle({
-                            Name = WidgetData.Name,
-                            Flag = WidgetData.Flag,
-                            Default = WidgetData.Default,
-                            Callback = WidgetData.Callback
-                        })
-
-                        if type(WidgetData.Settings) == "function" then
-                            local WidgetSettings = WidgetToggle:Settings()
-                            WidgetData.Settings(WidgetSettings, WidgetToggle)
-                        end
-                    end
-                end
             end
+
+            Page.MainSubPage = MainSubPage
         end
     end
 end
