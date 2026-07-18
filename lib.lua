@@ -3440,7 +3440,8 @@ do
             local ViewportCamera = Instance.new("Camera")
 
             Items["Viewport"].Instance.CurrentCamera = ViewportCamera
-            ViewportCamera.CameraType = Enum.CameraType.Track
+            ViewportCamera.CameraType = Enum.CameraType.Scriptable
+            ViewportCamera.FieldOfView = 35
             ViewportCamera.Focus = CFrame.new(0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1)
             ViewportCamera.CFrame = CFrame.new(0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1)
 
@@ -3448,9 +3449,10 @@ do
             local RenderObjects = table.create(25)
             local Connections = {}
 
-            local OFFSET = CFrame.new(0, 0.35, -6.4)
+            -- Front framing: character fills most of the viewport (matches builder box)
+            local OFFSET = CFrame.new(0, 1.2, -5.5)
             local PreviewSyncAccum = 0
-            local PREVIEW_SYNC_HZ = 1 / 8
+            local PREVIEW_SYNC_HZ = 1 / 10
 
             local ValidClasses = {
                 MeshPart = true,
