@@ -747,7 +747,6 @@ do
         end
 
         local Object = Self.Instance
-        -- Holder uses IgnoreGuiInset; Mouse.Y is viewport-relative — align with AbsolutePosition
         local MousePosition = Vector2.new(Mouse.X, Mouse.Y + GuiInset)
 
         return MousePosition.X >= Object.AbsolutePosition.X and
@@ -833,10 +832,8 @@ do
             Enum.UserInputType.Gamepad6,
             Enum.UserInputType.Gamepad7,
             Enum.UserInputType.Gamepad8,
-            Enum.UserInputType.MouseWheel,
             Enum.UserInputType.MouseButton2,
-            Enum.UserInputType.MouseButton3,
-            Enum.UserInputType.MouseMovement
+            Enum.UserInputType.MouseButton3
         )
     end
 
@@ -1462,7 +1459,18 @@ do
 
     Library:Connect(RunService.RenderStepped, function()
         local MouseCursor = Library.MouseCursor
-        if not (MouseCursor and MouseCursor.Instance and Library.WindowOpenState) then
+        if not Library.WindowOpenState then
+            return
+        end
+
+        if UserInputService.MouseBehavior ~= Enum.MouseBehavior.Default then
+            UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+        end
+        if UserInputService.MouseIconEnabled then
+            UserInputService.MouseIconEnabled = false
+        end
+
+        if not (MouseCursor and MouseCursor.Instance) then
             return
         end
 
@@ -2326,6 +2334,7 @@ do
             local Keybind = {
                 Flag = Data.Flag,
                 IsOpen = false,
+                ParentFlag = Data.ParentFlag or Data.parentFlag or nil,
 
                 Key = "",
                 Mode = "",
@@ -2336,6 +2345,25 @@ do
 
                 Items = {}
             }
+
+            local function ParentEnabled()
+                if not Keybind.ParentFlag then
+                    return true
+                end
+                return Flags[Keybind.ParentFlag] == true
+            end
+
+            local function ForceOff(silent)
+                Keybind.Toggled = false
+                Flags[Keybind.Flag] = {
+                    Mode = Keybind.Mode,
+                    Key = Keybind.Key,
+                    Toggled = false
+                }
+                if not silent and Data.Callback then
+                    Library:SafeCall(Data.Callback, false)
+                end
+            end
 
             local Items = {}
             do
@@ -2427,6 +2455,11 @@ do
                 Callback = function(Value)
                     Keybind.Mode = Value
                     if Value == "Always" then
+                        if not ParentEnabled() then
+                            ForceOff(true)
+                            Update()
+                            return
+                        end
                         Keybind.Toggled = true
                     end
 
@@ -2534,6 +2567,11 @@ do
             function Keybind:SetMode(Mode)
                 ModeDropdown:Set(Mode)
                 if Mode == "Always" then
+                    if not ParentEnabled() then
+                        ForceOff(true)
+                        Update()
+                        return
+                    end
                     Keybind.Toggled = true
                 end
 
@@ -2551,6 +2589,12 @@ do
             end
 
             function Keybind:Press(Bool)
+                if not ParentEnabled() then
+                    ForceOff(true)
+                    Update()
+                    return
+                end
+
                 if Keybind.Mode == "Toggle" then
                     Keybind.Toggled = not Keybind.Toggled
                 elseif Keybind.Mode == "Hold" then
@@ -2569,6 +2613,11 @@ do
                     Library:SafeCall(Data.Callback, Keybind.Toggled)
                 end
 
+                Update()
+            end
+
+            function Keybind:Deactivate(silent)
+                ForceOff(silent == true)
                 Update()
             end
 
@@ -2674,6 +2723,14 @@ do
                     return
                 end
 
+                if not ParentEnabled() then
+                    if Keybind.Toggled then
+                        ForceOff(true)
+                        Update()
+                    end
+                    return
+                end
+
                 if not GPE then
                     if tostring(Input.KeyCode) == Keybind.Key then
                         if Keybind.Mode == "Toggle" then
@@ -2716,6 +2773,10 @@ do
                     return
                 end
 
+                if not ParentEnabled() then
+                    return
+                end
+
                 if tostring(Input.KeyCode) == Keybind.Key then
                     if Keybind.Mode == "Hold" then
                         Keybind:Press(false)
@@ -2740,6 +2801,12 @@ do
                     Mode = Data.Mode or "Toggle",
                     Key = Data.Default,
                 })
+            end
+
+            if Keybind.ParentFlag then
+                Library.KeybindParents = Library.KeybindParents or {}
+                Library.KeybindParents[Keybind.ParentFlag] = Library.KeybindParents[Keybind.ParentFlag] or {}
+                table.insert(Library.KeybindParents[Keybind.ParentFlag], Keybind)
             end
 
             SetFlags[Keybind.Flag] = function(Value)
@@ -8357,6 +8424,14 @@ do
                         Items["Text"]:ChangeItemTheme({ TextColor3 = "Inactive Text" })
                         Items["Text"]:Tween({ TextColor3 = Library.Theme["Inactive Text"] })
                     end
+                    local children = Library.KeybindParents and Library.KeybindParents[Toggle.Flag]
+                    if children then
+                        for _, kb in ipairs(children) do
+                            if kb and type(kb.Deactivate) == "function" then
+                                kb:Deactivate(true)
+                            end
+                        end
+                    end
                 end
 
                 Flags[Toggle.Flag] = Bool
@@ -8651,7 +8726,8 @@ do
                     Flag = Keybind.Flag,
                     Default = Keybind.Default,
                     Mode = Keybind.Mode,
-                    Callback = Keybind.Callback
+                    Callback = Keybind.Callback,
+                    ParentFlag = Data.ParentFlag or Data.parentFlag or Toggle.Flag,
                 })
 
                 return NewKeybind
@@ -9581,7 +9657,6 @@ do
                     OptionHolder.ZIndex = 3
 
                     Debounce = false
-                    -- Delay clip/position sync so the open click doesn't instantly close the list
                     local openGen = Dropdown._openGen
                     task.defer(function()
                         if Dropdown.IsOpen and Dropdown._openGen == openGen then
@@ -9643,7 +9718,6 @@ do
                     if not Dropdown.IsOpen then
                         return
                     end
-                    -- Defer: same click that opens must not instantly close
                     local openGen = Dropdown._openGen
                     task.defer(function()
                         if not Dropdown.IsOpen or Dropdown._openGen ~= openGen then
