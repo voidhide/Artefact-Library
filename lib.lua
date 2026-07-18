@@ -2642,7 +2642,6 @@ do
                         Toggled = Keybind.Toggled
                     }
 
-                    -- Do not fire Callback on key change (SyncToggleState = false behavior)
                     Update()
                 elseif type(Key) == "table" then
                     local RealKey = Key.Key == "Backspace" and "None" or Key.Key
@@ -3399,7 +3398,6 @@ do
                     ZIndex = 1
                 })
 
-                -- Transparent host for live ESP Builder Gui overlays (above viewport)
                 Items["Overlay"] = Library:Create("Frame", {
                     Name = "EspBuilderOverlay",
                     Parent = Items["Background"].Instance,
@@ -3450,7 +3448,9 @@ do
             local RenderObjects = table.create(25)
             local Connections = {}
 
-            local OFFSET = CFrame.new(0, 2.5, -8.5)
+            local OFFSET = CFrame.new(0, 0.35, -6.4)
+            local PreviewSyncAccum = 0
+            local PREVIEW_SYNC_HZ = 1 / 8
 
             local ValidClasses = {
                 MeshPart = true,
@@ -3568,14 +3568,25 @@ do
                 end))
             end
 
-            Library:Connect(RunService.Heartbeat, function()
+            Library:Connect(RunService.Heartbeat, function(dt)
                 if not PreviewModel or not Items["ESPPreview"].Instance.Visible then
                     return
                 end
 
+                PreviewSyncAccum += dt or 0
+                if PreviewSyncAccum < PREVIEW_SYNC_HZ then
+                    return
+                end
+                PreviewSyncAccum = 0
+
                 local Root = PreviewModel:FindFirstChild("HumanoidRootPart")
                 if not Root then
                     return
+                end
+
+                local vpSize = Items["Viewport"].Instance.AbsoluteSize
+                if vpSize.X > 1 and vpSize.Y > 1 then
+                    ViewportCamera.ViewportSize = vpSize
                 end
 
                 ViewportCamera.CFrame = CFrame.new(Root.CFrame:ToWorldSpace(OFFSET).Position, Root.Position)
