@@ -65,7 +65,7 @@ local Library = {
 
     OpenFrames = {},
     WindowVisibilityBindings = {},
-    WindowOpenState = true,
+    WindowOpenState = false,
     ActiveSliderDrag = nil,
     SliderInputReady = false,
     InputBlockAction = "NH_UI_INPUT_BLOCK",
@@ -848,12 +848,14 @@ do
             }
             UserInputService.MouseBehavior = Enum.MouseBehavior.Default
             UserInputService.MouseIconEnabled = false
-        elseif Library.MouseStateBeforeOpen then
-            UserInputService.MouseBehavior = Library.MouseStateBeforeOpen.MouseBehavior or Enum.MouseBehavior.Default
-            UserInputService.MouseIconEnabled = Library.MouseStateBeforeOpen.MouseIconEnabled ~= false
-            Library.MouseStateBeforeOpen = nil
         else
+            if Self.InputBlocker and Self.InputBlocker.Instance then
+                Self.InputBlocker.Instance.Visible = false
+                Self.InputBlocker.Instance.Modal = false
+            end
+            UserInputService.MouseBehavior = Enum.MouseBehavior.Default
             UserInputService.MouseIconEnabled = true
+            Library.MouseStateBeforeOpen = nil
         end
 
         if Library.MouseCursor and Library.MouseCursor.Instance then
@@ -1400,7 +1402,7 @@ do
         Parent = Library.Holder.Instance,
         Name = "\0",
         Visible = false,
-        Modal = true,
+        Modal = false,
         AutoButtonColor = false,
         Active = true,
         Size = UDim2.new(1, 0, 1, 0),
@@ -2640,10 +2642,7 @@ do
                         Toggled = Keybind.Toggled
                     }
 
-                    if Data.Callback then
-                        Library:SafeCall(Data.Callback, Keybind.Toggled)
-                    end
-
+                    -- Do not fire Callback on key change (SyncToggleState = false behavior)
                     Update()
                 elseif type(Key) == "table" then
                     local RealKey = Key.Key == "Backspace" and "None" or Key.Key
@@ -2720,6 +2719,14 @@ do
 
             Library:Connect(UserInputService.InputBegan, function(Input, GPE)
                 if Keybind.Value == "None" then
+                    return
+                end
+
+                if Library.WindowOpenState then
+                    return
+                end
+
+                if type(_G.__FridayBindActivateAllowed) == "function" and not _G.__FridayBindActivateAllowed() then
                     return
                 end
 
@@ -7338,7 +7345,7 @@ do
             Params = Params or {}
 
             local Window = {
-                IsOpen = true,
+                IsOpen = false,
                 Title = tostring(Params.Title or Params.title or Params.Name or Params.name or "Panel"),
                 DockButtonText = tostring(Params.ButtonName or Params.buttonName or "Main UI"),
                 Pages = {},
@@ -7882,6 +7889,9 @@ do
 
             UpdateDockState()
             Window:Center()
+            Items["Header"].Instance.Visible = false
+            Library:SetWindowVisibilityState(false)
+            Items["MainFrame"]:FadeDescendants(false, function() end)
             return setmetatable(Window, Library)
         end
 
