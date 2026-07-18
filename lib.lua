@@ -65,7 +65,7 @@ local Library = {
 
     OpenFrames = {},
     WindowVisibilityBindings = {},
-    WindowOpenState = false,
+    WindowOpenState = true,
     ActiveSliderDrag = nil,
     SliderInputReady = false,
     InputBlockAction = "NH_UI_INPUT_BLOCK",
@@ -2726,10 +2726,6 @@ do
                     return
                 end
 
-                if type(_G.__FridayBindActivateAllowed) == "function" and not _G.__FridayBindActivateAllowed() then
-                    return
-                end
-
                 if not ParentEnabled() then
                     if Keybind.Toggled then
                         ForceOff(true)
@@ -3399,11 +3395,29 @@ do
                     Parent = Items["Background"].Instance,
                     BackgroundTransparency = 1,
                     Size = UDim2.new(1, 0, 1, 0),
-                    BorderSizePixel = 0
+                    BorderSizePixel = 0,
+                    ZIndex = 1
                 })
+
+                -- Transparent host for live ESP Builder Gui overlays (above viewport)
+                Items["Overlay"] = Library:Create("Frame", {
+                    Name = "EspBuilderOverlay",
+                    Parent = Items["Background"].Instance,
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(1, 0, 1, 0),
+                    BorderSizePixel = 0,
+                    ZIndex = 10
+                })
+                Items["Overlay"].Instance.Active = true
+                Items["Overlay"].Instance.ZIndex = 10
             end
 
             AlignPreviewToWindow(Items["ESPPreview"].Instance)
+
+            Preview.Instance = Items["ESPPreview"].Instance
+            Preview.Viewport = Items["Viewport"].Instance
+            Preview.Overlay = Items["Overlay"].Instance
+            Preview.Items = Items
 
             local IsVisible = true
             local ApplyVisibility = function(IsWindowOpen)
@@ -3419,6 +3433,10 @@ do
 
             function Preview:SetText(Text)
                 Items["Text"].Instance.Text = Text
+            end
+
+            function Preview:GetOverlay()
+                return Items["Overlay"] and Items["Overlay"].Instance or nil
             end
 
             local ViewportCamera = Instance.new("Camera")
@@ -7345,7 +7363,7 @@ do
             Params = Params or {}
 
             local Window = {
-                IsOpen = false,
+                IsOpen = true,
                 Title = tostring(Params.Title or Params.title or Params.Name or Params.name or "Panel"),
                 DockButtonText = tostring(Params.ButtonName or Params.buttonName or "Main UI"),
                 Pages = {},
@@ -7889,9 +7907,7 @@ do
 
             UpdateDockState()
             Window:Center()
-            Items["Header"].Instance.Visible = false
-            Library:SetWindowVisibilityState(false)
-            Items["MainFrame"]:FadeDescendants(false, function() end)
+            Library:SetWindowVisibilityState(true)
             return setmetatable(Window, Library)
         end
 
