@@ -1,5 +1,5 @@
 --[[
-    25/07/2026
+    17/2/2026
     Library.lua
     Purpose:
         NH ui library
@@ -781,7 +781,6 @@ do
         local Success, Result = pcall(Function, table.unpack(Arguements))
 
         if not Success then
-            warn(Result)
             return false
         end
 
@@ -1179,29 +1178,109 @@ do
     end
 
     Library.GetConfig = function(Self)
-        local Config = {}
+        local function sanitizeFlag(Value)
+            local valueType = typeof(Value)
+            if valueType == "Color3" then
+                return { Color = "#" .. Value:ToHex(), Alpha = 1 }
+            end
+            if valueType == "Vector2" or valueType == "Vector3" or valueType == "UDim2" or valueType == "EnumItem" then
+                return nil
+            end
+            if valueType == "Instance" or valueType == "function" or valueType == "thread" then
+                return nil
+            end
+            if type(Value) ~= "table" then
+                return Value
+            end
 
-        local Success, Result = Library:SafeCall(function()
-            for Index, Value in Library.Flags do
-                if type(Value) == "table" and Value.Key then
-                    Config[Index] = { Key = tostring(Value.Key), Mode = Value.Mode, Toggled = Value.Toggled }
-                elseif type(Value) == "table" and Value.Color then
-                    Config[Index] = { Color = "#" .. Value.HexValue, Alpha = Value.Alpha }
-                else
-                    Config[Index] = Value
+            if Value.Key ~= nil then
+                return {
+                    Key = tostring(Value.Key),
+                    Mode = Value.Mode,
+                    Toggled = Value.Toggled == true,
+                }
+            end
+
+            if Value.Color ~= nil or Value.HexValue ~= nil then
+                local hex = Value.HexValue
+                if type(hex) ~= "string" or hex == "" then
+                    if typeof(Value.Color) == "Color3" then
+                        hex = Value.Color:ToHex()
+                    else
+                        hex = "ffffff"
+                    end
+                end
+                hex = string.gsub(tostring(hex), "^#", "")
+                return {
+                    Color = "#" .. hex,
+                    Alpha = tonumber(Value.Alpha) or 1,
+                }
+            end
+
+            local isBoolMap = true
+            local arrayOut = {}
+            for k, v in pairs(Value) do
+                if type(k) == "number" then
+                    isBoolMap = false
+                    break
+                end
+                if v == true and type(k) == "string" then
+                    arrayOut[#arrayOut + 1] = k
+                elseif v ~= true then
+                    isBoolMap = false
+                    break
+                end
+            end
+            if isBoolMap and #arrayOut > 0 then
+                table.sort(arrayOut)
+                return arrayOut
+            end
+
+            local out = {}
+            for k, v in pairs(Value) do
+                local sk = sanitizeFlag(k)
+                local sv = sanitizeFlag(v)
+                if sk ~= nil and sv ~= nil then
+                    out[sk] = sv
+                elseif type(k) == "number" and sv ~= nil then
+                    out[k] = sv
+                elseif type(k) == "string" and sv ~= nil then
+                    out[k] = sv
+                end
+            end
+            return out
+        end
+
+        local Config = {}
+        local okBuild, buildErr = pcall(function()
+            for Index, Value in pairs(Library.Flags) do
+                if type(Index) == "string" then
+                    local sanitized = sanitizeFlag(Value)
+                    if sanitized ~= nil then
+                        Config[Index] = sanitized
+                    end
                 end
             end
         end)
-
-        if not Success then
-            warn("Failed to get config:\n" .. Result)
-            return
+        if not okBuild then
+            return nil, tostring(buildErr)
         end
 
-        return HttpService:JSONEncode({
-            Flags = Config,
-            Layout = Library:GetLayoutConfig()
-        })
+        local Layout = {}
+        pcall(function()
+            Layout = Library:GetLayoutConfig() or {}
+        end)
+
+        local okEncode, encoded = pcall(function()
+            return HttpService:JSONEncode({
+                Flags = Config,
+                Layout = Layout,
+            })
+        end)
+        if not okEncode or type(encoded) ~= "string" or encoded == "" then
+            return nil, tostring(encoded)
+        end
+        return encoded
     end
 
     Library.LoadConfig = function(Self, Config)
@@ -1221,6 +1300,27 @@ do
                     SetFunction(Value)
                 elseif type(Value) == "table" and Value.Color then
                     SetFunction(Value.Color, Value.Alpha)
+                elseif type(Value) == "table" then
+                    local asArray = {}
+                    local looksLikeBoolMap = true
+                    for k, v in pairs(Value) do
+                        if type(k) == "number" then
+                            looksLikeBoolMap = false
+                            break
+                        end
+                        if type(k) == "string" and v == true then
+                            asArray[#asArray + 1] = k
+                        else
+                            looksLikeBoolMap = false
+                            break
+                        end
+                    end
+                    if looksLikeBoolMap and #asArray > 0 then
+                        table.sort(asArray)
+                        SetFunction(asArray)
+                    else
+                        SetFunction(Value)
+                    end
                 else
                     SetFunction(Value)
                 end
@@ -2434,9 +2534,12 @@ do
 
             local Update = function()
                 if KeybindObject then
-                    local hasKey = Keybind.Value ~= nil
-                        and Keybind.Value ~= ""
-                        and Keybind.Value ~= "None"
+                    local v = string.lower(tostring(Keybind.Value or ""))
+                    local hasKey = v ~= ""
+                        and v ~= "none"
+                        and v ~= "nil"
+                        and v ~= "n/a"
+                        and v ~= "[...]"
                     KeybindObject:SetStatus(hasKey)
                     KeybindObject:Set(Keybind.Value or "None", Data.Name, Keybind.Mode)
                 end
@@ -10946,7 +11049,13 @@ do
                                     return
                                 end
 
-                                writefile(ConfigsFolder .. ConfigName .. ".json", Library:GetConfig())
+                                local payload, err = Library:GetConfig()
+                                if type(payload) ~= "string" or payload == "" then
+                                    Library:Notification("Failed to create config: \n" .. tostring(err), 3,
+                                        Color3.fromRGB(255, 0, 0))
+                                    return
+                                end
+                                writefile(ConfigsFolder .. ConfigName .. ".json", payload)
                                 Library:GetConfigsList(ConfigsDropdown)
                                 Library:Notification("Succesfully created config", 3, Color3.fromRGB(0, 255, 0))
                             end
@@ -11018,7 +11127,11 @@ do
                             if ConfigSelected then
                                 if isfile(ConfigsFolder .. ConfigSelected .. ".json") then
                                     local Success, Error = pcall(function()
-                                        writefile(ConfigsFolder .. ConfigSelected .. ".json", Library:GetConfig())
+                                        local payload, err = Library:GetConfig()
+                                        if type(payload) ~= "string" or payload == "" then
+                                            error(tostring(err or "GetConfig returned empty"))
+                                        end
+                                        writefile(ConfigsFolder .. ConfigSelected .. ".json", payload)
                                     end)
 
                                     if Success then
