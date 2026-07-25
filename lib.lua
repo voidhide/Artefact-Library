@@ -1,5 +1,5 @@
 --[[
-    17/2/2026
+    25/07/2026
     Library.lua
     Purpose:
         NH ui library
@@ -2434,12 +2434,16 @@ do
 
             local Update = function()
                 if KeybindObject then
-                    KeybindObject:SetStatus(Keybind.Toggled)
-                    KeybindObject:Set(Keybind.Value, Data.Name, Keybind.Mode)
+                    local hasKey = Keybind.Value ~= nil
+                        and Keybind.Value ~= ""
+                        and Keybind.Value ~= "None"
+                    KeybindObject:SetStatus(hasKey)
+                    KeybindObject:Set(Keybind.Value or "None", Data.Name, Keybind.Mode)
                 end
             end
 
             local Debounce = false
+            local PressDebounceAt = 0
             local RenderStepped
             local KeybindWindow = Items["KeybindWindow"].Instance
             local KeyButton = Items["KeyButton"].Instance
@@ -2486,7 +2490,7 @@ do
                 Default = true,
                 Callback = function(Value)
                     if KeybindObject then
-                        KeybindObject:SetVis(Value)
+                        KeybindObject:SetVis(Value == true)
                         Update()
                     end
                 end
@@ -2598,6 +2602,11 @@ do
                 end
 
                 if Keybind.Mode == "Toggle" then
+                    local now = tick()
+                    if (now - PressDebounceAt) < 0.12 then
+                        return
+                    end
+                    PressDebounceAt = now
                     Keybind.Toggled = not Keybind.Toggled
                 elseif Keybind.Mode == "Hold" then
                     Keybind.Toggled = Bool
@@ -2636,6 +2645,10 @@ do
                     Keybind.Value = TextToDisplay
                     Items["KeyButton"].Instance.Text = "[" .. TextToDisplay .. "]"
 
+                    if TextToDisplay == "None" then
+                        Keybind.Toggled = false
+                    end
+
                     Flags[Keybind.Flag] = {
                         Mode = Keybind.Mode,
                         Key = Keybind.Key,
@@ -2663,7 +2676,9 @@ do
 
                     Keybind.Value = TextToDisplay
                     Items["KeyButton"].Instance.Text = "[" .. TextToDisplay .. "]"
-                    if Keybind.Mode == "Always" then
+                    if TextToDisplay == "None" then
+                        Keybind.Toggled = false
+                    elseif Keybind.Mode == "Always" then
                         Keybind.Toggled = true
                     elseif type(Key.Toggled) == "boolean" then
                         Keybind.Toggled = Key.Toggled
@@ -2721,7 +2736,15 @@ do
                     return
                 end
 
+                if Keybind.Picking then
+                    return
+                end
+
                 if Library.WindowOpenState then
+                    return
+                end
+
+                if type(_G.__FridayBindActivateAllowed) == "function" and not _G.__FridayBindActivateAllowed() then
                     return
                 end
 
@@ -3120,6 +3143,7 @@ do
 
             function KeybindList:Add(Key, Name, Mode)
                 local CanShowInKeybindsList = true
+                local LastActive = false
 
                 local NewKey = Library:Create("TextLabel", {
                     Name = "\0",
@@ -3131,6 +3155,7 @@ do
                     BackgroundTransparency = 1,
                     Size = UDim2.new(0, 0, 0, 15),
                     BorderSizePixel = 0,
+                    Visible = false,
                     AutomaticSize = Enum.AutomaticSize.X
                 }):AddToTheme({ TextColor3 = 'Text' })
 
@@ -3139,15 +3164,17 @@ do
                 end
 
                 function NewKey:SetStatus(Bool)
+                    LastActive = Bool == true
                     if not CanShowInKeybindsList then
                         Bool = false
                     end
 
-                    NewKey.Instance.Visible = Bool
+                    NewKey.Instance.Visible = Bool == true
                 end
 
                 function NewKey:SetVis(Bool)
-                    CanShowInKeybindsList = Bool
+                    CanShowInKeybindsList = Bool == true
+                    NewKey.Instance.Visible = CanShowInKeybindsList and LastActive
                 end
 
                 return NewKey
@@ -10708,7 +10735,6 @@ do
         Library.CreateSettingsPage = function(Self)
             local Page = Self:Page({ Name = "Settings", Icon = "rbxassetid://0" })
 
-            -- Single content page (no Configs/Other/Server/Infos tabs)
             local MainSubPage = Page:SubPage({ Name = "Main" })
             if Page.Items and Page.Items["SubPages"] then
                 Page.Items["SubPages"].Instance.Visible = false
@@ -10718,7 +10744,6 @@ do
                 Page.Items["Columns"].Instance.Size = UDim2.new(1, 0, 1, 0)
             end
 
-            -- 1) Settings (left) + Widgets (right)
             do
                 local SettingsSection = MainSubPage:Section({ Name = "Settings", Side = 1 })
                 do
@@ -10791,7 +10816,6 @@ do
                 pcall(Library.OnBuildSettingsExtras, MainSubPage, Page)
             end
 
-            -- 2) Server (left) + Infos (right)
             do
                 local ServerSec = MainSubPage:Section({ Name = "Server", Side = 1 })
                 ServerSec:Button({
@@ -10888,7 +10912,6 @@ do
                 end)
             end
 
-            -- 3) Configs (left) + Theming (right) — last, side by side
             do
                 local ConfigName
                 local ConfigSelected
