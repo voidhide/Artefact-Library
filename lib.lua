@@ -9161,6 +9161,17 @@ do
                     Section = Toggle.Section,
                 }
 
+                local parentFlag
+                if Data.ParentFlag == false or Data.parentFlag == false then
+                    parentFlag = nil
+                elseif Data.ParentFlag ~= nil then
+                    parentFlag = Data.ParentFlag
+                elseif Data.parentFlag ~= nil then
+                    parentFlag = Data.parentFlag
+                else
+                    parentFlag = Toggle.Flag
+                end
+
                 local NewKeybind, KeybindItems = Library:CreateKeybind({
                     Parent = Items["SubElements"],
                     Name = Keybind.Name,
@@ -9170,7 +9181,7 @@ do
                     Default = Keybind.Default,
                     Mode = Keybind.Mode,
                     Callback = Keybind.Callback,
-                    ParentFlag = Data.ParentFlag or Data.parentFlag or Toggle.Flag,
+                    ParentFlag = parentFlag,
                 })
 
                 return NewKeybind
