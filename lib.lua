@@ -183,29 +183,66 @@ do
     local CustomFont = {}
     do
         function CustomFont:New(Name, Weight, Style, Data)
-            if not isfile(Data.Id) then
-                writefile(Data.Id, game:HttpGet(Data.Url))
+            local assetsDir = Library.Directory .. Library.Folders.Assets
+            local ttfPath = Data.Id
+            if not string.find(tostring(ttfPath), "[/\\]") then
+                if not string.find(string.lower(tostring(ttfPath)), "%.ttf$") and not string.find(string.lower(tostring(ttfPath)), "%.otf$") then
+                    ttfPath = assetsDir .. "/" .. tostring(Data.Id) .. ".ttf"
+                else
+                    ttfPath = assetsDir .. "/" .. tostring(Data.Id)
+                end
             end
 
-            local Data = {
+            if not isfile(ttfPath) then
+                writefile(ttfPath, game:HttpGet(Data.Url))
+            end
+
+            local fontJson = {
                 name = Name,
                 faces = {
                     {
                         name = Name,
                         weight = Weight,
                         style = Style,
-                        assetId = getcustomasset(Data.Id)
+                        assetId = getcustomasset(ttfPath)
                     }
                 }
             }
 
-            writefile(`{Library.Directory .. Library.Folders.Assets}/{Name}.font`, HttpService:JSONEncode(Data))
-            return Font.new(getcustomasset(`{Library.Directory .. Library.Folders.Assets}/{Name}.font`))
+            local fontJsonPath = `{assetsDir}/{Name}.font`
+            writefile(fontJsonPath, HttpService:JSONEncode(fontJson))
+            return Font.new(getcustomasset(fontJsonPath))
         end
 
-        Library.Font = CustomFont:New("Verdana", 400, "Regular", {
-            Id = "verdana.ttf",
-            Url = "https://github.com/voidhide/Artefact-Library/raw/refs/heads/main/verdana.ttf"
+        Library.CustomFont = CustomFont
+
+        Library.SetFont = function(Self, FontObject)
+            if typeof(FontObject) ~= "Font" then
+                return false
+            end
+            Self.Font = FontObject
+            local roots = {}
+            if Self.Holder and Self.Holder.Instance then
+                table.insert(roots, Self.Holder.Instance)
+            end
+            if Self.UnusedHolder and Self.UnusedHolder.Instance then
+                table.insert(roots, Self.UnusedHolder.Instance)
+            end
+            for _, root in ipairs(roots) do
+                for _, desc in ipairs(root:GetDescendants()) do
+                    if desc:IsA("TextLabel") or desc:IsA("TextButton") or desc:IsA("TextBox") then
+                        pcall(function()
+                            desc.FontFace = FontObject
+                        end)
+                    end
+                end
+            end
+            return true
+        end
+
+        Library.Font = CustomFont:New("SmallestPixel7", 400, "Regular", {
+            Id = "SmallestPixel7",
+            Url = "https://github.com/sametexe001/luas/raw/refs/heads/main/smallest_pixel-7.ttf"
         })
     end
 
@@ -7135,15 +7172,8 @@ do
                     BorderSizePixel = 0,
                     Image = "",
                     ScaleType = Enum.ScaleType.Crop,
+                    Visible = false,
                 }):AddToTheme({ BackgroundColor3 = 'Element' })
-
-                Library:Create("UIStroke", {
-                    Name = "\0",
-                    Parent = Items["Avatar"].Instance,
-                    ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-                    LineJoinMode = Enum.LineJoinMode.Miter,
-                    Color = Library.Theme["Accent"]
-                }):AddToTheme({ Color = 'Accent' })
 
                 Items["InfoHeader"] = Library:Create("TextLabel", {
                     Name = "\0",
@@ -7151,13 +7181,14 @@ do
                     TextSize = Library.FontSize,
                     Parent = Items["Detail"].Instance,
                     TextColor3 = Library.Theme["Text"],
-                    Text = "Select a player",
+                    Text = "",
                     TextXAlignment = Enum.TextXAlignment.Left,
                     TextTruncate = Enum.TextTruncate.AtEnd,
                     Position = UDim2.new(0, 90, 0, 8),
                     Size = UDim2.new(1, -210, 0, 14),
                     BackgroundTransparency = 1,
                     BorderSizePixel = 0,
+                    Visible = false,
                 }):AddToTheme({ TextColor3 = 'Text' })
 
                 local function mkInfoLine(name, y, defaultText)
@@ -7173,13 +7204,14 @@ do
                         Size = UDim2.new(1, -210, 0, 14),
                         BackgroundTransparency = 1,
                         BorderSizePixel = 0,
+                        Visible = false,
                     }):AddToTheme({ TextColor3 = 'Text' })
                 end
 
-                Items["InfoHealth"] = mkInfoLine("Health", 28, "Health: —")
-                Items["InfoArmor"] = mkInfoLine("Armor", 44, "Armor: —")
-                Items["InfoTool"] = mkInfoLine("Tool", 60, "Tool: —")
-                Items["InfoStuds"] = mkInfoLine("Studs", 76, "Studs: —")
+                Items["InfoHealth"] = mkInfoLine("Health", 28, "")
+                Items["InfoArmor"] = mkInfoLine("Armor", 44, "")
+                Items["InfoTool"] = mkInfoLine("Tool", 60, "")
+                Items["InfoStuds"] = mkInfoLine("Studs", 76, "")
 
                 Items["StatusHost"] = Library:Create("Frame", {
                     Name = "\0",
@@ -7189,6 +7221,7 @@ do
                     Size = UDim2.new(0, 110, 0, 40),
                     BackgroundTransparency = 1,
                     BorderSizePixel = 0,
+                    Visible = false,
                 })
 
                 Items["Buttons"] = Library:Create("Frame", {
@@ -7198,6 +7231,7 @@ do
                     Size = UDim2.new(1, -20, 0, BTN_H),
                     BackgroundTransparency = 1,
                     BorderSizePixel = 0,
+                    Visible = false,
                 })
 
                 Library:Create("UIListLayout", {
@@ -7278,13 +7312,31 @@ do
                 applySearchFilter()
             end)
 
+            local function setDetailVisible(show)
+                show = show == true
+                Items["Avatar"].Instance.Visible = show
+                Items["InfoHeader"].Instance.Visible = show
+                Items["InfoHealth"].Instance.Visible = show
+                Items["InfoArmor"].Instance.Visible = show
+                Items["InfoTool"].Instance.Visible = show
+                Items["InfoStuds"].Instance.Visible = show
+                Items["StatusHost"].Instance.Visible = show
+                Items["Buttons"].Instance.Visible = show
+                Items["Detail"].Instance.Visible = show
+            end
+
             local function setDetailEmpty()
-                Items["InfoHeader"].Instance.Text = "Select a player"
-                Items["InfoHealth"].Instance.Text = "Health: —"
-                Items["InfoArmor"].Instance.Text = "Armor: —"
-                Items["InfoTool"].Instance.Text = "Tool: —"
-                Items["InfoStuds"].Instance.Text = "Studs: —"
+                Items["InfoHeader"].Instance.Text = ""
+                Items["InfoHealth"].Instance.Text = ""
+                Items["InfoArmor"].Instance.Text = ""
+                Items["InfoTool"].Instance.Text = ""
+                Items["InfoStuds"].Instance.Text = ""
                 Items["Avatar"].Instance.Image = ""
+                setDetailVisible(false)
+            end
+
+            local function setDetailSelected()
+                setDetailVisible(true)
             end
 
             local function loadAvatar(userId)
@@ -7307,6 +7359,7 @@ do
                 if not sel or not sel.Player then
                     return
                 end
+                setDetailVisible(true)
                 local plr = sel.Player
                 local char = plr.Character
                 local hum = char and char:FindFirstChildOfClass("Humanoid")
@@ -7462,6 +7515,7 @@ do
                         end
 
                         loadAvatar(PlayerUserID)
+                        setDetailSelected()
                         refreshSelectedStats()
                         if StatusDropdown and StatusDropdown.Set and not PlayerData.IsLocalPlayer then
                             pcall(function()
