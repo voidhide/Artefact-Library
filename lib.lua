@@ -203,9 +203,9 @@ do
             return Font.new(getcustomasset(`{Library.Directory .. Library.Folders.Assets}/{Name}.font`))
         end
 
-        Library.Font = CustomFont:New("SmallestPixel7", 400, "Regular", {
-            Id = "SmallestPixel7",
-            Url = "https://github.com/sametexe001/luas/raw/refs/heads/main/smallest_pixel-7.ttf"
+        Library.Font = CustomFont:New("Verdana", 400, "Regular", {
+            Id = "verdana.ttf",
+            Url = "https://github.com/voidhide/Artefact-Library/raw/refs/heads/main/verdana.ttf"
         })
     end
 
@@ -7334,10 +7334,9 @@ do
                 end
 
                 Items["InfoHeader"].Instance.Text = string.format(
-                    "%s - (@%s) - %s",
+                    "%s - (@%s)",
                     tostring(sel.Display or plr.DisplayName or plr.Name),
-                    tostring(sel.Name or plr.Name),
-                    tostring(sel.UserId or plr.UserId)
+                    tostring(sel.Name or plr.Name)
                 )
                 Items["InfoHealth"].Instance.Text = "Health: " .. hpText
                 Items["InfoArmor"].Instance.Text = "Armor: " .. armorText
