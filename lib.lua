@@ -1,20 +1,7 @@
---[[
-    17/2/2026
-    Library.lua
-    Purpose:
-        NH ui library
-
-    Author: @qlnt
-    Dependencies:
-        None
-]]
-
-
 if getgenv().Library and getgenv().Library.Exit then
     getgenv().Library:Exit()
 end
 
--- Bad executor support (atleast by a bit)
 cloneref = cloneref or function(Object) return Object end
 
 local Players = game:GetService("Players")
@@ -39,7 +26,7 @@ local Library = {
     Flags = {},
     MenuKeybind = tostring(Enum.KeyCode.X),
 
-    Directory = "niggahack",
+    Directory = "Artefact",
     Folders = {
         Assets = "/Assets",
         Configs = "/Configs"
@@ -2540,7 +2527,8 @@ do
                         and v ~= "nil"
                         and v ~= "n/a"
                         and v ~= "[...]"
-                    KeybindObject:SetStatus(hasKey)
+                    local active = Keybind.Mode == "Always" or Keybind.Toggled == true
+                    KeybindObject:SetStatus(hasKey and active)
                     KeybindObject:Set(Keybind.Value or "None", Data.Name, Keybind.Mode)
                 end
             end
@@ -3579,8 +3567,6 @@ do
             local Connections = {}
 
             local OFFSET = CFrame.new(0, 2.5, -8.5)
-            local PreviewSyncAccum = 0
-            local PREVIEW_SYNC_HZ = 1 / 8
 
             local ValidClasses = {
                 MeshPart = true,
@@ -3698,16 +3684,10 @@ do
                 end))
             end
 
-            Library:Connect(RunService.Heartbeat, function(dt)
+            Library:Connect(RunService.RenderStepped, function()
                 if not PreviewModel or not Items["ESPPreview"].Instance.Visible then
                     return
                 end
-
-                PreviewSyncAccum += dt or 0
-                if PreviewSyncAccum < PREVIEW_SYNC_HZ then
-                    return
-                end
-                PreviewSyncAccum = 0
 
                 local Root = PreviewModel:FindFirstChild("HumanoidRootPart")
                 if not Root then
@@ -6974,17 +6954,26 @@ do
                 IsSettings = true,
                 Players = {},
                 Selected = nil,
+                Visible = true,
+                ActionCallbacks = {},
+                SearchFilter = "",
             }
+            local StatusDropdown
+
+            local LIST_H = 168
+            local DETAIL_H = 118
+            local BTN_H = 28
+            local WIN_W = 470
+            local WIN_H = 30 + 28 + LIST_H + 8 + DETAIL_H + 8 + BTN_H + 14
 
             local Items = {}
             do
                 Items["Playerlist"] = Library:Create("Frame", {
                     Name = "\0",
                     Parent = Library.Holder.Instance,
-                    Size = UDim2.new(0, 461, 0, 403),
+                    Size = UDim2.new(0, WIN_W, 0, WIN_H),
                     Position = UDim2.new(0, 828, 0, 99),
                     BorderSizePixel = 0,
-                    AutomaticSize = Enum.AutomaticSize.Y,
                     BackgroundColor3 = Library.Theme["Background"]
                 }):AddToTheme({ BackgroundColor3 = 'Background' })
 
@@ -7024,11 +7013,57 @@ do
                     BackgroundColor3 = Library.Theme["Light Border"]
                 }):AddToTheme({ BackgroundColor3 = 'Light Border' })
 
+                Items["Text"] = Library:Create("TextLabel", {
+                    Name = "\0",
+                    FontFace = Library.Font,
+                    TextSize = Library.FontSize,
+                    Parent = Items["Playerlist"].Instance,
+                    TextColor3 = Library.Theme["Accent"],
+                    Text = Params.Name or "Player List",
+                    Size = UDim2.new(0, 0, 0, 15),
+                    Position = UDim2.new(0, 10, 0, 6),
+                    BackgroundTransparency = 1,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    BorderSizePixel = 0,
+                    AutomaticSize = Enum.AutomaticSize.X
+                }):AddToTheme({ TextColor3 = 'Accent' })
+
+                Items["SearchBox"] = Library:Create("TextBox", {
+                    Name = "\0",
+                    FontFace = Library.Font,
+                    TextSize = Library.FontSize,
+                    Parent = Items["Playerlist"].Instance,
+                    TextColor3 = Library.Theme["Text"],
+                    PlaceholderText = "Search players...",
+                    PlaceholderColor3 = Library.Theme["Inactive Text"] or Color3.fromRGB(120, 120, 120),
+                    Text = "",
+                    ClearTextOnFocus = false,
+                    Position = UDim2.new(0, 10, 0, 28),
+                    Size = UDim2.new(1, -20, 0, 22),
+                    BorderSizePixel = 0,
+                    BackgroundColor3 = Library.Theme["Element"]
+                }):AddToTheme({ TextColor3 = 'Text', BackgroundColor3 = 'Element' })
+
+                Library:Create("UIStroke", {
+                    Name = "\0",
+                    Parent = Items["SearchBox"].Instance,
+                    ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+                    LineJoinMode = Enum.LineJoinMode.Miter,
+                    Color = Library.Theme["Outline"]
+                }):AddToTheme({ Color = 'Outline' })
+
+                Library:Create("UIPadding", {
+                    Name = "\0",
+                    Parent = Items["SearchBox"].Instance,
+                    PaddingLeft = UDim.new(0, 8),
+                    PaddingRight = UDim.new(0, 8),
+                })
+
                 Items["Background"] = Library:Create("Frame", {
                     Name = "\0",
                     Parent = Items["Playerlist"].Instance,
-                    Position = UDim2.new(0, 10, 0, 30),
-                    Size = UDim2.new(1, -20, 1, -90),
+                    Position = UDim2.new(0, 10, 0, 54),
+                    Size = UDim2.new(1, -20, 0, LIST_H),
                     BorderSizePixel = 0,
                     BackgroundColor3 = Library.Theme["Section"]
                 }):AddToTheme({ BackgroundColor3 = 'Section' })
@@ -7059,73 +7094,255 @@ do
                     CanvasSize = UDim2.new(0, 0, 0, 0),
                     ScrollBarImageColor3 = Library.Theme["Accent"],
                     MidImage = "rbxassetid://129030709932941",
-                    ScrollBarThickness = 1,
-                    Size = UDim2.new(1, -16, 1, -16),
+                    ScrollBarThickness = 2,
+                    Size = UDim2.new(1, -10, 1, -10),
                     BackgroundTransparency = 1,
-                    Position = UDim2.new(0, 8, 0, 8),
+                    Position = UDim2.new(0, 5, 0, 5),
                     BottomImage = "rbxassetid://129030709932941",
                     TopImage = "rbxassetid://129030709932941"
                 }):AddToTheme({ ScrollBarImageColor3 = 'Accent' })
 
-                Library:Create("UIPadding", {
-                    Name = "\0",
-                    Parent = Items["Holder"].Instance,
-                    PaddingTop = UDim.new(0, -4),
-                    PaddingRight = UDim.new(0, 8)
-                })
-
                 Library:Create("UIListLayout", {
                     Name = "\0",
                     Parent = Items["Holder"].Instance,
-                    Padding = UDim.new(0, 8),
+                    Padding = UDim.new(0, 2),
                     SortOrder = Enum.SortOrder.LayoutOrder
                 })
 
-                Items["Content"] = Library:Create("Frame", {
+                Items["Detail"] = Library:Create("Frame", {
                     Name = "\0",
                     Parent = Items["Playerlist"].Instance,
-                    AnchorPoint = Vector2.new(0, 1),
-                    BackgroundTransparency = 1,
-                    Position = UDim2.new(0, 10, 1, 0),
-                    Size = UDim2.new(1, -20, 0, 0),
+                    Position = UDim2.new(0, 10, 0, 54 + LIST_H + 8),
+                    Size = UDim2.new(1, -20, 0, DETAIL_H),
                     BorderSizePixel = 0,
-                    AutomaticSize = Enum.AutomaticSize.Y
-                })
+                    BackgroundColor3 = Library.Theme["Section"]
+                }):AddToTheme({ BackgroundColor3 = 'Section' })
 
-                Library:Create("UIListLayout", {
+                Library:Create("UIStroke", {
                     Name = "\0",
-                    Parent = Items["Content"].Instance,
-                    Padding = UDim.new(0, 6),
-                    SortOrder = Enum.SortOrder.LayoutOrder
-                })
+                    Parent = Items["Detail"].Instance,
+                    ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+                    LineJoinMode = Enum.LineJoinMode.Miter,
+                    Color = Library.Theme["Outline"]
+                }):AddToTheme({ Color = 'Outline' })
 
-                Library:Create("UIPadding", {
+                Items["Avatar"] = Library:Create("ImageLabel", {
                     Name = "\0",
-                    Parent = Items["Content"].Instance,
-                    PaddingBottom = UDim.new(0, 10)
-                })
+                    Parent = Items["Detail"].Instance,
+                    Position = UDim2.new(0, 8, 0, 10),
+                    Size = UDim2.new(0, 72, 0, 72),
+                    BackgroundColor3 = Library.Theme["Element"],
+                    BorderSizePixel = 0,
+                    Image = "",
+                    ScaleType = Enum.ScaleType.Crop,
+                }):AddToTheme({ BackgroundColor3 = 'Element' })
 
-                Library:Create("UIPadding", {
+                Library:Create("UIStroke", {
                     Name = "\0",
-                    Parent = Items["Playerlist"].Instance
-                })
+                    Parent = Items["Avatar"].Instance,
+                    ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+                    LineJoinMode = Enum.LineJoinMode.Miter,
+                    Color = Library.Theme["Accent"]
+                }):AddToTheme({ Color = 'Accent' })
 
-                Items["Text"] = Library:Create("TextLabel", {
+                Items["InfoHeader"] = Library:Create("TextLabel", {
                     Name = "\0",
                     FontFace = Library.Font,
                     TextSize = Library.FontSize,
-                    Parent = Items["Playerlist"].Instance,
-                    TextColor3 = Library.Theme["Accent"],
-                    Text = Params.Name,
-                    Size = UDim2.new(0, 0, 0, 15),
-                    Position = UDim2.new(0, 10, 0, 6),
-                    BackgroundTransparency = 1,
+                    Parent = Items["Detail"].Instance,
+                    TextColor3 = Library.Theme["Text"],
+                    Text = "Select a player",
                     TextXAlignment = Enum.TextXAlignment.Left,
+                    TextTruncate = Enum.TextTruncate.AtEnd,
+                    Position = UDim2.new(0, 90, 0, 8),
+                    Size = UDim2.new(1, -210, 0, 14),
+                    BackgroundTransparency = 1,
                     BorderSizePixel = 0,
-                    AutomaticSize = Enum.AutomaticSize.X
-                }):AddToTheme({ TextColor3 = 'Accent' })
+                }):AddToTheme({ TextColor3 = 'Text' })
+
+                local function mkInfoLine(name, y, defaultText)
+                    return Library:Create("TextLabel", {
+                        Name = name,
+                        FontFace = Library.Font,
+                        TextSize = Library.FontSize,
+                        Parent = Items["Detail"].Instance,
+                        TextColor3 = Library.Theme["Text"],
+                        Text = defaultText,
+                        TextXAlignment = Enum.TextXAlignment.Left,
+                        Position = UDim2.new(0, 90, 0, y),
+                        Size = UDim2.new(1, -210, 0, 14),
+                        BackgroundTransparency = 1,
+                        BorderSizePixel = 0,
+                    }):AddToTheme({ TextColor3 = 'Text' })
+                end
+
+                Items["InfoHealth"] = mkInfoLine("Health", 28, "Health: —")
+                Items["InfoArmor"] = mkInfoLine("Armor", 44, "Armor: —")
+                Items["InfoTool"] = mkInfoLine("Tool", 60, "Tool: —")
+                Items["InfoStuds"] = mkInfoLine("Studs", 76, "Studs: —")
+
+                Items["StatusHost"] = Library:Create("Frame", {
+                    Name = "\0",
+                    Parent = Items["Detail"].Instance,
+                    AnchorPoint = Vector2.new(1, 0),
+                    Position = UDim2.new(1, -8, 0, 8),
+                    Size = UDim2.new(0, 110, 0, 40),
+                    BackgroundTransparency = 1,
+                    BorderSizePixel = 0,
+                })
+
+                Items["Buttons"] = Library:Create("Frame", {
+                    Name = "\0",
+                    Parent = Items["Playerlist"].Instance,
+                    Position = UDim2.new(0, 10, 0, 54 + LIST_H + 8 + DETAIL_H + 8),
+                    Size = UDim2.new(1, -20, 0, BTN_H),
+                    BackgroundTransparency = 1,
+                    BorderSizePixel = 0,
+                })
+
+                Library:Create("UIListLayout", {
+                    Name = "\0",
+                    Parent = Items["Buttons"].Instance,
+                    FillDirection = Enum.FillDirection.Horizontal,
+                    Padding = UDim.new(0, 6),
+                    SortOrder = Enum.SortOrder.LayoutOrder,
+                })
+
+                local function makeActionButton(name, order)
+                    local btn = Library:Create("TextButton", {
+                        Name = name,
+                        FontFace = Library.Font,
+                        TextSize = Library.FontSize,
+                        Parent = Items["Buttons"].Instance,
+                        TextColor3 = Library.Theme["Text"],
+                        Text = name,
+                        AutoButtonColor = false,
+                        Size = UDim2.new(0, 108, 1, 0),
+                        BorderSizePixel = 0,
+                        BackgroundColor3 = Library.Theme["Element"],
+                        LayoutOrder = order,
+                    }):AddToTheme({ TextColor3 = 'Text', BackgroundColor3 = 'Element' })
+
+                    Library:Create("UIStroke", {
+                        Name = "\0",
+                        Parent = btn.Instance,
+                        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+                        LineJoinMode = Enum.LineJoinMode.Miter,
+                        Color = Library.Theme["Outline"]
+                    }):AddToTheme({ Color = 'Outline' })
+
+                    btn:Connect("MouseButton1Click", function()
+                        local cb = Playerlist.ActionCallbacks and Playerlist.ActionCallbacks[name]
+                        if type(cb) == "function" then
+                            Library:SafeCall(cb, Playerlist.Selected)
+                        end
+                    end)
+
+                    btn:OnHover(function()
+                        btn:Tween({ BackgroundColor3 = Library.Theme["Hovered Element"] or Library.Theme["Accent"] })
+                    end, function()
+                        btn:Tween({ BackgroundColor3 = Library.Theme["Element"] })
+                    end)
+
+                    return btn
+                end
+
+                Items["BtnTeleport"] = makeActionButton("Teleport", 1)
+                Items["BtnSpectate"] = makeActionButton("Spectate", 2)
+                Items["BtnTarget"] = makeActionButton("Select as Target", 3)
+                Items["BtnBring"] = makeActionButton("Bring", 4)
 
                 Playerlist.Items = Items
+            end
+
+            local function applySearchFilter()
+                local q = string.lower(tostring(Playerlist.SearchFilter or ""))
+                for _, data in pairs(Playerlist.Players) do
+                    local row = data.Items and data.Items.NewPlayer and data.Items.NewPlayer.Instance
+                    if row then
+                        if q == "" then
+                            row.Visible = true
+                        else
+                            local hay = string.lower(tostring(data.Display or "") .. " " .. tostring(data.Name or "") .. " " .. tostring(data.UserId or ""))
+                            row.Visible = string.find(hay, q, 1, true) ~= nil
+                        end
+                    end
+                end
+            end
+
+            Items["SearchBox"]:Connect("Changed", function(prop)
+                if prop ~= "Text" then
+                    return
+                end
+                Playerlist.SearchFilter = Items["SearchBox"].Instance.Text or ""
+                applySearchFilter()
+            end)
+
+            local function setDetailEmpty()
+                Items["InfoHeader"].Instance.Text = "Select a player"
+                Items["InfoHealth"].Instance.Text = "Health: —"
+                Items["InfoArmor"].Instance.Text = "Armor: —"
+                Items["InfoTool"].Instance.Text = "Tool: —"
+                Items["InfoStuds"].Instance.Text = "Studs: —"
+                Items["Avatar"].Instance.Image = ""
+            end
+
+            local function loadAvatar(userId)
+                task.spawn(function()
+                    local ok, url = pcall(function()
+                        return Players:GetUserThumbnailAsync(
+                            userId,
+                            Enum.ThumbnailType.AvatarBust,
+                            Enum.ThumbnailSize.Size150x150
+                        )
+                    end)
+                    if Playerlist.Selected and Playerlist.Selected.UserId == userId then
+                        Items["Avatar"].Instance.Image = (ok and url) or ""
+                    end
+                end)
+            end
+
+            local function refreshSelectedStats()
+                local sel = Playerlist.Selected
+                if not sel or not sel.Player then
+                    return
+                end
+                local plr = sel.Player
+                local char = plr.Character
+                local hum = char and char:FindFirstChildOfClass("Humanoid")
+                local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                local tool = char and char:FindFirstChildOfClass("Tool")
+
+                local hpText = "—"
+                if hum then
+                    hpText = string.format("%d / %d", math.floor(hum.Health + 0.5), math.floor(hum.MaxHealth + 0.5))
+                end
+
+                local armorText = "—"
+                if char then
+                    local be = char:FindFirstChild("BodyEffects")
+                    local armor = be and (be:FindFirstChild("Armor") or be:FindFirstChild("Defense"))
+                    if armor and armor:IsA("ValueBase") then
+                        armorText = tostring(math.floor((tonumber(armor.Value) or 0) + 0.5))
+                    end
+                end
+
+                local studsText = "—"
+                local lhrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                if hrp and lhrp then
+                    studsText = tostring(math.floor((hrp.Position - lhrp.Position).Magnitude + 0.5))
+                end
+
+                Items["InfoHeader"].Instance.Text = string.format(
+                    "%s - (@%s) - %s",
+                    tostring(sel.Display or plr.DisplayName or plr.Name),
+                    tostring(sel.Name or plr.Name),
+                    tostring(sel.UserId or plr.UserId)
+                )
+                Items["InfoHealth"].Instance.Text = "Health: " .. hpText
+                Items["InfoArmor"].Instance.Text = "Armor: " .. armorText
+                Items["InfoTool"].Instance.Text = "Tool: " .. (tool and tool.Name or "none")
+                Items["InfoStuds"].Instance.Text = "Studs: " .. studsText
             end
 
             function Playerlist:Add(Player)
@@ -7148,10 +7365,10 @@ do
                         TextColor3 = Color3.fromRGB(0, 0, 0),
                         Text = "",
                         AutoButtonColor = false,
-                        Active = not IsLocalPlayer,
-                        Selectable = not IsLocalPlayer,
+                        Active = true,
+                        Selectable = true,
                         BackgroundTransparency = 1,
-                        Size = UDim2.new(1, 0, 0, 20),
+                        Size = UDim2.new(1, 0, 0, 16),
                         BorderSizePixel = 0,
                         LayoutOrder = IsLocalPlayer and 0 or 1,
                     })
@@ -7165,28 +7382,27 @@ do
                         TextTruncate = Enum.TextTruncate.AtEnd,
                         TextXAlignment = Enum.TextXAlignment.Left,
                         TextColor3 = Library.Theme["Text"],
-                        Text = PlayerDisplay,
-                        Size = UDim2.new(0.38, -6, 0, 15),
+                        Text = string.format("%s - (@%s)", PlayerDisplay, PlayerName),
+                        Size = UDim2.new(0.55, -4, 1, 0),
                         AnchorPoint = Vector2.new(0, 0.5),
                         BorderSizePixel = 0,
                         BackgroundTransparency = 1,
-                        Position = UDim2.new(0, 0, 0.5, 0),
+                        Position = UDim2.new(0, 2, 0.5, 0),
                     }):AddToTheme({ TextColor3 = 'Text' })
 
-                    PlayerItems["UserID"] = Library:Create("TextLabel", {
+                    PlayerItems["Tag"] = Library:Create("TextLabel", {
                         Name = "\0",
                         FontFace = Library.Font,
                         TextSize = Library.FontSize,
                         Parent = PlayerItems["NewPlayer"].Instance,
-                        TextWrapped = true,
+                        TextWrapped = false,
                         TextColor3 = Library.Theme["Text"],
-                        Text = tostring(PlayerUserID),
-                        Size = UDim2.new(0, 0, 0, 15),
+                        Text = "None",
+                        Size = UDim2.new(0.2, 0, 1, 0),
                         AnchorPoint = Vector2.new(0.5, 0.5),
                         BorderSizePixel = 0,
                         BackgroundTransparency = 1,
-                        Position = UDim2.new(0.5, 0, 0.5, 0),
-                        AutomaticSize = Enum.AutomaticSize.X
+                        Position = UDim2.new(0.68, 0, 0.5, 0),
                     }):AddToTheme({ TextColor3 = 'Text' })
 
                     PlayerItems["Status"] = Library:Create("TextLabel", {
@@ -7194,15 +7410,15 @@ do
                         FontFace = Library.Font,
                         TextSize = Library.FontSize,
                         Parent = PlayerItems["NewPlayer"].Instance,
-                        TextWrapped = true,
+                        TextWrapped = false,
                         TextColor3 = IsLocalPlayer and Library.Theme["Accent"] or Library.Theme["Text"],
                         Text = IsLocalPlayer and "LocalPlayer" or "Neutral",
-                        Size = UDim2.new(0, 0, 0, 15),
+                        Size = UDim2.new(0.22, -2, 1, 0),
                         AnchorPoint = Vector2.new(1, 0.5),
                         BorderSizePixel = 0,
                         BackgroundTransparency = 1,
-                        Position = UDim2.new(1, 0, 0.5, 0),
-                        AutomaticSize = Enum.AutomaticSize.X
+                        Position = UDim2.new(1, -2, 0.5, 0),
+                        TextXAlignment = Enum.TextXAlignment.Right,
                     })
 
                     if not IsLocalPlayer then
@@ -7210,10 +7426,10 @@ do
                     end
                 end
 
-
                 local PlayerData = {
                     Name = PlayerName,
                     Display = PlayerDisplay,
+                    UserId = PlayerUserID,
                     Player = Player,
                     Items = PlayerItems,
                     Status = IsLocalPlayer and "LocalPlayer" or "Neutral",
@@ -7222,10 +7438,6 @@ do
                 }
 
                 function PlayerData:ToggleState(Status)
-                    if PlayerData.IsLocalPlayer then
-                        return
-                    end
-
                     if Status == "Active" then
                         PlayerItems["Username"]:ChangeItemTheme({ TextColor3 = "Accent" })
                         PlayerItems["Username"]:Tween({ TextColor3 = Library.Theme["Accent"] })
@@ -7236,48 +7448,61 @@ do
                 end
 
                 function PlayerData:Set()
-                    if PlayerData.IsLocalPlayer then
-                        return
-                    end
-
                     PlayerData.IsSelected = not PlayerData.IsSelected
 
                     if PlayerData.IsSelected then
                         Playerlist.Selected = PlayerData
-
                         PlayerData.IsSelected = true
                         PlayerData:ToggleState("Active")
 
-                        for Index, Value in Playerlist.Players do
+                        for _, Value in pairs(Playerlist.Players) do
                             if Value ~= PlayerData then
                                 Value.IsSelected = false
                                 Value:ToggleState("Inactive")
                             end
                         end
-                    else
-                        Playerlist.Selected = nil
 
+                        loadAvatar(PlayerUserID)
+                        refreshSelectedStats()
+                        if StatusDropdown and StatusDropdown.Set and not PlayerData.IsLocalPlayer then
+                            pcall(function()
+                                StatusDropdown:Set(PlayerData.Status)
+                            end)
+                        end
+                    else
+                        if Playerlist.Selected == PlayerData then
+                            Playerlist.Selected = nil
+                        end
                         PlayerData.IsSelected = false
                         PlayerData:ToggleState("Inactive")
+                        setDetailEmpty()
                     end
 
                     Library:SafeCall(Playerlist.Callback, Playerlist.Selected)
                 end
 
-                if not IsLocalPlayer then
-                    PlayerData.Items.NewPlayer:Connect("MouseButton1Down", function()
-                        PlayerData:Set()
-                    end)
-                end
+                PlayerData.Items.NewPlayer:Connect("MouseButton1Down", function()
+                    PlayerData:Set()
+                end)
 
                 Playerlist.Players[PlayerData.Name] = PlayerData
+                applySearchFilter()
                 return PlayerData
             end
 
             function Playerlist:Remove(Player)
-                if Playerlist.Players[Player.Name] then
-                    Playerlist.Players[Player.Name].Items.NewPlayer.Instance:Destroy()
+                local entry = Playerlist.Players[Player.Name]
+                if not entry then
+                    return
                 end
+                if Playerlist.Selected == entry then
+                    Playerlist.Selected = nil
+                    setDetailEmpty()
+                end
+                if entry.Items and entry.Items.NewPlayer then
+                    entry.Items.NewPlayer.Instance:Destroy()
+                end
+                Playerlist.Players[Player.Name] = nil
             end
 
             function Playerlist:SetVisibility(Bool)
@@ -7296,56 +7521,59 @@ do
                 Items["Text"].Instance.Text = Text
             end
 
-            local StatusDropdown = Library:Dropdown({
+            StatusDropdown = Library:Dropdown({
                 Name = "Status",
                 Flag = "PlayerlistStatus",
                 Items = { "Neutral", "Enemy", "Friendly" },
-                Parent = Items["Playerlist"],
+                Parent = Items["StatusHost"],
                 Callback = function(Value)
-                    if Playerlist.Selected and Playerlist.Selected.IsLocalPlayer then
+                    if not Playerlist.Selected or Playerlist.Selected.IsLocalPlayer then
                         return
                     end
-
-                    if Playerlist.Selected then
-                        local PlayerItems = Playerlist.Selected.Items
-
-                        if PlayerItems then
-                            local NeutralColor = Library.Theme["Text"]
-                            local EnemyColor = Color3.fromRGB(255, 0, 0)
-                            local FriendlyColor = Color3.fromRGB(0, 255, 0)
-
-                            PlayerItems["Status"]:Tween({
-                                TextColor3 = Value == "Enemy" and EnemyColor or Value == "Friendly" and FriendlyColor or
-                                    NeutralColor
-                            })
-
-                            PlayerItems["Status"].Instance.Text = Value
-                            Playerlist.Selected.Status = Value
-                        end
+                    local PlayerItems = Playerlist.Selected.Items
+                    if not PlayerItems then
+                        return
                     end
+                    local NeutralColor = Library.Theme["Text"]
+                    local EnemyColor = Color3.fromRGB(255, 0, 0)
+                    local FriendlyColor = Color3.fromRGB(0, 255, 0)
+                    PlayerItems["Status"]:Tween({
+                        TextColor3 = Value == "Enemy" and EnemyColor or Value == "Friendly" and FriendlyColor or NeutralColor
+                    })
+                    PlayerItems["Status"].Instance.Text = Value
+                    Playerlist.Selected.Status = Value
                 end
             })
 
-            StatusDropdown.Items.Dropdown.Instance.Position = UDim2.new(0, 10, 1, -10)
-            StatusDropdown.Items.Dropdown.Instance.AnchorPoint = Vector2.new(0, 1)
-            StatusDropdown.Items.Dropdown.Instance.Size = UDim2.new(1, -20, 0, 40)
+            StatusDropdown.Items.Dropdown.Instance.Size = UDim2.new(1, 0, 0, 40)
+            StatusDropdown.Items.Dropdown.Instance.Position = UDim2.new(0, 0, 0, 0)
 
             Playerlist:Add(LocalPlayer)
-
-            for Index, Value in Players:GetPlayers() do
+            for _, Value in ipairs(Players:GetPlayers()) do
                 if Value ~= LocalPlayer then
                     Playerlist:Add(Value)
                 end
             end
 
+            local statsAccum = 0
+            Library:Connect(RunService.Heartbeat, function(dt)
+                if not Items["Playerlist"].Instance.Visible then
+                    return
+                end
+                if not Playerlist.Selected then
+                    return
+                end
+                statsAccum += dt or 0
+                if statsAccum < 0.12 then
+                    return
+                end
+                statsAccum = 0
+                refreshSelectedStats()
+            end)
+
             Playerlist.Visible = true
             Library:BindToWindowVisibility(function(IsWindowOpen)
                 Items["Playerlist"].Instance.Visible = Playerlist.Visible and IsWindowOpen
-            end)
-
-            Library:Connect(Items["Content"].Instance.ChildAdded, function()
-                task.wait()
-                Items["Content"].Instance.Position = UDim2.new(0, 10, 1, Items["Content"].Instance.AbsoluteSize.Y)
             end)
 
             Library:Connect(Players.PlayerAdded, function(Player)
@@ -7360,11 +7588,11 @@ do
                 Instance = Items["Playerlist"].Instance
             })
 
+            setDetailEmpty()
             Playerlist:Center()
 
             return setmetatable(Playerlist, Library)
         end
-
         Library.Tooltip = function(Self, Text)
             local Object = Self.Instance
 
@@ -9625,6 +9853,17 @@ do
                 end
 
                 function OptionData:Set()
+                    if Dropdown.Multi then
+                        Dropdown._suppressClose = true
+                        Dropdown._keepMultiOpen = true
+                        local gen = (Dropdown._openGen or 0)
+                        task.delay(0.25, function()
+                            if Dropdown._openGen == gen then
+                                Dropdown._suppressClose = false
+                            end
+                        end)
+                    end
+
                     OptionData.IsSelected = not OptionData.IsSelected
 
                     if Dropdown.Multi then
@@ -9887,6 +10126,12 @@ do
                         end
                         if Dropdown._suppressClose then
                             return
+                        end
+                        if Dropdown.Multi and Dropdown._keepMultiOpen then
+                            if Items["OptionHolder"]:IsMouseOverFrame() then
+                                return
+                            end
+                            Dropdown._keepMultiOpen = false
                         end
                         if Items["OptionHolder"]:IsMouseOverFrame() then
                             return
@@ -10415,6 +10660,17 @@ do
                 end
 
                 function OptionData:Set()
+                    if Dropdown.Multi then
+                        Dropdown._suppressClose = true
+                        Dropdown._keepMultiOpen = true
+                        local gen = (Dropdown._openGen or 0)
+                        task.delay(0.25, function()
+                            if Dropdown._openGen == gen then
+                                Dropdown._suppressClose = false
+                            end
+                        end)
+                    end
+
                     OptionData.IsSelected = not OptionData.IsSelected
 
                     if Dropdown.Multi then
