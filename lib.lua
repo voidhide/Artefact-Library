@@ -46,6 +46,7 @@ local Library = {
     Connections = {},
     Notifications = {},
     SetFlags = {},
+    ConfigLoadedHooks = {},
 
     ThemingStuff = {},
     ThemeMap = {},
@@ -158,6 +159,17 @@ do
     for _, Folder in Library.Folders do
         if not isfolder(Library.Directory .. Folder) then
             makefolder(Library.Directory .. Folder)
+        end
+    end
+
+    do
+        local targetPath = Library.Directory .. "/target.lua"
+        if not isfile(targetPath) then
+            pcall(writefile, targetPath, [=[-- discord.gg/artefact
+return {
+	-- 1,
+}
+]=])
         end
     end
 
@@ -1312,17 +1324,75 @@ do
         local FlagData = type(Decoded) == "table" and Decoded.Flags or Decoded
         local LayoutData = type(Decoded) == "table" and Decoded.Layout
 
+        local function applyRawFlag(Index, Value)
+            if type(Value) == "table" and Value.Key then
+                Flags[Index] = {
+                    Key = tostring(Value.Key),
+                    Mode = Value.Mode,
+                    Toggled = Value.Toggled == true,
+                }
+                return
+            end
+
+            if type(Value) == "table" and Value.Color then
+                local hex = tostring(Value.Color or Value.HexValue or "ffffff")
+                hex = string.gsub(hex, "^#", "")
+                local color = nil
+                local okHex, decodedColor = pcall(function()
+                    return Color3.fromHex(hex)
+                end)
+                if okHex then
+                    color = decodedColor
+                end
+                Flags[Index] = {
+                    Alpha = tonumber(Value.Alpha) or 1,
+                    Color = color or Color3.fromRGB(255, 255, 255),
+                    HexValue = hex,
+                    Transparency = 1 - (tonumber(Value.Alpha) or 1),
+                }
+                return
+            end
+
+            if type(Value) == "table" then
+                local asArray = {}
+                local looksLikeBoolMap = true
+                for k, v in pairs(Value) do
+                    if type(k) == "number" then
+                        looksLikeBoolMap = false
+                        break
+                    end
+                    if type(k) == "string" and v == true then
+                        asArray[#asArray + 1] = k
+                    else
+                        looksLikeBoolMap = false
+                        break
+                    end
+                end
+                if looksLikeBoolMap and #asArray > 0 then
+                    table.sort(asArray)
+                    Flags[Index] = asArray
+                else
+                    Flags[Index] = Value
+                end
+                return
+            end
+
+            Flags[Index] = Value
+        end
+
         local Success, Result = Library:SafeCall(function()
             for Index, Value in FlagData do
-                local SetFunction = Library.SetFlags[Index]
-
-                if not SetFunction then
+                if type(Value) == "table" and Value.Key then
                     continue
                 end
 
-                if type(Value) == "table" and Value.Key then
-                    SetFunction(Value)
-                elseif type(Value) == "table" and Value.Color then
+                local SetFunction = Library.SetFlags[Index]
+                if not SetFunction then
+                    applyRawFlag(Index, Value)
+                    continue
+                end
+
+                if type(Value) == "table" and Value.Color then
                     SetFunction(Value.Color, Value.Alpha)
                 elseif type(Value) == "table" then
                     local asArray = {}
@@ -1357,6 +1427,7 @@ do
 
                 local SetFunction = Library.SetFlags[Index]
                 if not SetFunction then
+                    applyRawFlag(Index, Value)
                     continue
                 end
 
@@ -1369,6 +1440,20 @@ do
                 task.wait()
                 Library:ApplyLayoutConfig(LayoutData)
             end)
+        end
+
+        if Success then
+            local hooks = Library.ConfigLoadedHooks
+            if type(hooks) == "table" then
+                for _, hook in pairs(hooks) do
+                    if type(hook) == "function" then
+                        pcall(hook, FlagData, LayoutData)
+                    end
+                end
+            end
+            if type(_G.__FridayOnConfigLoaded) == "function" then
+                pcall(_G.__FridayOnConfigLoaded, FlagData, LayoutData)
+            end
         end
 
         return Success, Result
@@ -2788,34 +2873,41 @@ do
                     local RealKey = Key.Key == "Backspace" and "None" or Key.Key
                     Keybind.Key = tostring(Key.Key)
 
-                    if Key.Mode then
-                        Keybind.Mode = Key.Mode
-                        Keybind:SetMode(Key.Mode)
-                    else
-                        Keybind.Mode = "Toggle"
-                        Keybind:SetMode("Toggle")
-                    end
+                    local pendingMode = Key.Mode or "Toggle"
+                    local pendingToggled = Key.Toggled
+
+                    Keybind.Mode = pendingMode
+                    pcall(function()
+                        if ModeDropdown and type(ModeDropdown.Set) == "function" then
+                            ModeDropdown:Set(pendingMode)
+                        end
+                    end)
+                    Keybind.Mode = pendingMode
 
                     local KeyString = Keys[Keybind.Key] or string.gsub(tostring(RealKey), "Enum.", "") or RealKey
                     local TextToDisplay = KeyString and
                         string.gsub(string.gsub(KeyString, "KeyCode.", ""), "UserInputType.", "") or "None"
 
-                    TextToDisplay = string.gsub(string.gsub(KeyString, "KeyCode.", ""), "UserInputType.", "")
+                    TextToDisplay = string.gsub(string.gsub(tostring(KeyString), "KeyCode.", ""), "UserInputType.", "")
 
                     Keybind.Value = TextToDisplay
                     Items["KeyButton"].Instance.Text = "[" .. TextToDisplay .. "]"
-                    if TextToDisplay == "None" then
+                    if TextToDisplay == "None" or TextToDisplay == "" or TextToDisplay == "nil" then
                         Keybind.Toggled = false
                     elseif Keybind.Mode == "Always" then
                         Keybind.Toggled = true
-                    elseif type(Key.Toggled) == "boolean" then
-                        Keybind.Toggled = Key.Toggled
+                    elseif type(pendingToggled) == "boolean" then
+                        Keybind.Toggled = pendingToggled
+                    end
+
+                    if ParentEnabled() and Keybind.Mode == "Always" then
+                        Keybind.Toggled = true
                     end
 
                     Flags[Keybind.Flag] = {
                         Mode = Keybind.Mode,
                         Key = Keybind.Key,
-                        Toggled = Keybind.Toggled
+                        Toggled = Keybind.Toggled == true
                     }
 
                     if Data.Callback then
@@ -3432,6 +3524,218 @@ do
                     Items["Notification"].Instance:Destroy()
                 end)
             end)
+        end
+
+        Library.PersistentNotification = function(Self, Params)
+            Params = Params or {}
+            local Text = tostring(Params.Text or Params.Name or "")
+            local Color = Params.Color or Library.Theme["Accent"]
+            local Actions = type(Params.Actions) == "table" and Params.Actions or {}
+
+            local Handle = {
+                Destroyed = false,
+                Items = {},
+            }
+
+            local Items = Handle.Items
+            local hasActions = #Actions > 0
+            local height = hasActions and 38 or 20
+
+            Items["Notification"] = Library:Create("Frame", {
+                Name = "\0",
+                Parent = Library.NotifHolder.Instance,
+                Size = UDim2.new(0, 0, 0, height),
+                BorderSizePixel = 0,
+                AutomaticSize = Enum.AutomaticSize.X,
+                BackgroundColor3 = Library.Theme["Section"],
+            }):AddToTheme({ BackgroundColor3 = "Section" })
+
+            Library:Create("UIPadding", {
+                Name = "\0",
+                Parent = Items["Notification"].Instance,
+                PaddingRight = UDim.new(0, 8),
+                PaddingLeft = UDim.new(0, 8),
+                PaddingTop = UDim.new(0, hasActions and 4 or 0),
+                PaddingBottom = UDim.new(0, hasActions and 4 or 0),
+            })
+
+            Items["Stroke"] = Library:Create("UIStroke", {
+                Name = "\0",
+                Parent = Items["Notification"].Instance,
+                ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+                LineJoinMode = Enum.LineJoinMode.Miter,
+                Color = Library.Theme["Border"],
+                BorderOffset = UDim.new(0, 1),
+            }):AddToTheme({ Color = "Border" })
+
+            Items["Stroke1"] = Library:Create("UIStroke", {
+                Name = "\0",
+                Parent = Items["Notification"].Instance,
+                ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+                LineJoinMode = Enum.LineJoinMode.Miter,
+                Color = Library.Theme["Outline"],
+            }):AddToTheme({ Color = "Outline" })
+
+            Items["AccentLiner"] = Library:Create("Frame", {
+                Name = "\0",
+                Parent = Items["Notification"].Instance,
+                Position = UDim2.new(0, -8, 0, 0),
+                Size = UDim2.new(0, 1, 1, 0),
+                BorderSizePixel = 0,
+                BackgroundColor3 = Color,
+            })
+
+            Items["Text"] = Library:Create("TextLabel", {
+                Name = "\0",
+                FontFace = Library.Font,
+                TextSize = Library.FontSize,
+                Parent = Items["Notification"].Instance,
+                TextColor3 = Library.Theme["Text"],
+                Text = Text,
+                Size = UDim2.new(0, 0, 0, 15),
+                BackgroundTransparency = 1,
+                Position = UDim2.new(0, 2, 0, 0),
+                BorderSizePixel = 0,
+                AutomaticSize = Enum.AutomaticSize.X,
+                TextXAlignment = Enum.TextXAlignment.Left,
+            }):AddToTheme({ TextColor3 = "Text" })
+
+            if hasActions then
+                Items["Actions"] = Library:Create("Frame", {
+                    Name = "\0",
+                    Parent = Items["Notification"].Instance,
+                    BackgroundTransparency = 1,
+                    BorderSizePixel = 0,
+                    Position = UDim2.new(0, 2, 0, 16),
+                    Size = UDim2.new(0, 0, 0, 16),
+                    AutomaticSize = Enum.AutomaticSize.X,
+                })
+
+                Library:Create("UIListLayout", {
+                    Name = "\0",
+                    Parent = Items["Actions"].Instance,
+                    FillDirection = Enum.FillDirection.Horizontal,
+                    SortOrder = Enum.SortOrder.LayoutOrder,
+                    Padding = UDim.new(0, 6),
+                    VerticalAlignment = Enum.VerticalAlignment.Center,
+                })
+
+                for i, action in ipairs(Actions) do
+                    local label = tostring(action.Name or action.Text or ("Action " .. i))
+                    local btn = Library:Create("TextButton", {
+                        Name = "\0",
+                        Parent = Items["Actions"].Instance,
+                        FontFace = Library.Font,
+                        TextSize = Library.FontSize,
+                        TextColor3 = Library.Theme["Accent"],
+                        BackgroundTransparency = 1,
+                        BorderSizePixel = 0,
+                        AutomaticSize = Enum.AutomaticSize.X,
+                        Size = UDim2.new(0, 0, 0, 14),
+                        AutoButtonColor = false,
+                        LayoutOrder = i,
+                    }):AddToTheme({ TextColor3 = "Accent" })
+                    btn.Instance.Text = string.lower(label)
+                    btn.Instance.AutoButtonColor = false
+
+                    btn:Connect("MouseButton1Click", function()
+                        if Handle.Destroyed then
+                            return
+                        end
+                        if type(action.Callback) == "function" then
+                            task.spawn(action.Callback, Handle)
+                        end
+                    end)
+                end
+            end
+
+            for _, Value in pairs(Items) do
+                local inst = Value.Instance
+                if inst:IsA("Frame") then
+                    inst.BackgroundTransparency = 1
+                elseif inst:IsA("TextLabel") or inst:IsA("TextButton") then
+                    inst.TextTransparency = 1
+                elseif inst:IsA("UIStroke") then
+                    inst.Transparency = 1
+                end
+            end
+            if Items["Actions"] then
+                Items["Actions"].Instance.BackgroundTransparency = 1
+            end
+
+            local function measure()
+                local frame = Items["Notification"].Instance
+                frame.AutomaticSize = Enum.AutomaticSize.X
+                task.wait()
+                local abs = frame.AbsoluteSize
+                frame.AutomaticSize = Enum.AutomaticSize.None
+                frame.Size = UDim2.new(0, math.max(abs.X, 120), 0, height)
+                return abs
+            end
+
+            local Size = measure()
+            Items["Notification"].Instance.Size = UDim2.new(0, 0, 0, height)
+
+            local Info = TweenInfo.new(0.85, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out, 0, false, 0)
+
+            Library:Thread(function()
+                Items["Notification"]:Tween({ BackgroundTransparency = 0, Size = UDim2.new(0, math.max(Size.X, 120), 0, height) }, Info)
+                Items["AccentLiner"]:Tween({ BackgroundTransparency = 0 }, Info)
+                for _, Value in pairs(Items) do
+                    local inst = Value.Instance
+                    if inst:IsA("TextLabel") or inst:IsA("TextButton") then
+                        Value:Tween({ TextTransparency = 0 }, Info)
+                    elseif inst:IsA("UIStroke") then
+                        Value:Tween({ Transparency = 0 }, Info)
+                    end
+                end
+            end)
+
+            function Handle:SetText(newText)
+                if self.Destroyed then
+                    return
+                end
+                Items["Text"].Instance.Text = tostring(newText or "")
+                task.defer(function()
+                    if self.Destroyed then
+                        return
+                    end
+                    local abs = measure()
+                    Items["Notification"].Instance.Size = UDim2.new(0, math.max(abs.X, 120), 0, height)
+                end)
+            end
+
+            function Handle:Alive()
+                return not self.Destroyed and Items["Notification"] and Items["Notification"].Instance and Items["Notification"].Instance.Parent ~= nil
+            end
+
+            function Handle:Destroy()
+                if self.Destroyed then
+                    return
+                end
+                self.Destroyed = true
+                Library:Thread(function()
+                    local fade = TweenInfo.new(0.35, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
+                    pcall(function()
+                        Items["Notification"]:Tween({ BackgroundTransparency = 1, Size = UDim2.new(0, 0, 0, height) }, fade)
+                        Items["AccentLiner"]:Tween({ BackgroundTransparency = 1 }, fade)
+                        for _, Value in pairs(Items) do
+                            local inst = Value.Instance
+                            if inst:IsA("TextLabel") or inst:IsA("TextButton") then
+                                Value:Tween({ TextTransparency = 1 }, fade)
+                            elseif inst:IsA("UIStroke") then
+                                Value:Tween({ Transparency = 1 }, fade)
+                            end
+                        end
+                    end)
+                    task.wait(0.4)
+                    pcall(function()
+                        Items["Notification"].Instance:Destroy()
+                    end)
+                end)
+            end
+
+            return Handle
         end
 
         Library.ESPPreview = function(Self, Params)
@@ -8860,6 +9164,34 @@ do
                     if not Toggle.Risky then
                         Items["Text"]:ChangeItemTheme({ TextColor3 = "Text" })
                         Items["Text"]:Tween({ TextColor3 = Library.Theme.Text })
+                    end
+                    local children = Library.KeybindParents and Library.KeybindParents[Toggle.Flag]
+                    if children then
+                        for _, kb in ipairs(children) do
+                            if not kb then
+                                continue
+                            end
+                            local st = Flags[kb.Flag]
+                            if type(st) ~= "table" then
+                                continue
+                            end
+                            if st.Mode == "Always" then
+                                kb.Toggled = true
+                                kb.Mode = "Always"
+                                Flags[kb.Flag] = {
+                                    Mode = "Always",
+                                    Key = st.Key or kb.Key,
+                                    Toggled = true,
+                                }
+                            elseif st.Toggled == true then
+                                kb.Toggled = true
+                                Flags[kb.Flag] = {
+                                    Mode = st.Mode or kb.Mode or "Toggle",
+                                    Key = st.Key or kb.Key,
+                                    Toggled = true,
+                                }
+                            end
+                        end
                     end
                 else
                     Items["Inline"]:Tween({ BackgroundTransparency = 1, Size = UDim2.new(0, 0, 0, 0) })
