@@ -1604,8 +1604,15 @@ return {
         Name = "\0",
         ZIndexBehavior = Enum.ZIndexBehavior.Global,
         IgnoreGuiInset = true,
-        ResetOnSpawn = false
+        ResetOnSpawn = false,
+        DisplayOrder = 2147483647,
     })
+    pcall(function()
+        Library.Holder.Instance.ClipToDeviceSafeArea = false
+    end)
+    pcall(function()
+        Library.Holder.Instance.SafeAreaCompatibility = Enum.SafeAreaCompatibility.None
+    end)
 
     Library.InputBlocker = Library:Create("TextButton", {
         Parent = Library.Holder.Instance,
@@ -1635,7 +1642,9 @@ return {
         Name = "\0",
         Enabled = false,
         ZIndexBehavior = Enum.ZIndexBehavior.Global,
-        ResetOnSpawn = false
+        ResetOnSpawn = false,
+        DisplayOrder = 2147483646,
+        IgnoreGuiInset = true,
     })
 
     Library:SetupBackgroundEffects()
@@ -3063,7 +3072,7 @@ return {
 
         Library.Watermark = function(Self, Params)
             local Watermark = {}
-            local PrefixText = tostring((Params and Params.Name) or "niggahack")
+            local PrefixText = tostring((Params and Params.Name) or "Artefact")
             local WatermarkTick = tick()
             local WatermarkFps = 0
             local WatermarkDisplayedFps = 0
@@ -7111,7 +7120,7 @@ return {
                 end
 
                 if Token == "" and TokenConfig.RefreshToken == "" then
-                    SetDisplay(nil, "Add a token or refresh config to niggahack/token.txt")
+                    SetDisplay(nil, "Add a token or refresh config to Artefact/token.txt")
                     return false
                 end
 
@@ -7126,7 +7135,7 @@ return {
                 end
 
                 if not ValidateToken() then
-                    SetDisplay(nil, "Invalid token in niggahack/token.txt")
+                    SetDisplay(nil, "Invalid token in Artefact/token.txt")
                     return false
                 end
 
@@ -8166,7 +8175,8 @@ return {
                     Visible = true,
                     Position = UDim2.new(0, 0, 0, 0),
                     Size = UDim2.new(1, 0, 1, 0),
-                    BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+                    BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+                    ZIndex = 100000,
                 })
 
                 Items["HeaderFirstInline"] = Library:Create("Frame", {
