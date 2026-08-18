@@ -66,6 +66,10 @@ local Library = {
     ActiveConfirmDialog = nil,
     MouseCursor = nil,
     MouseStateBeforeOpen = nil,
+    IsLoadingConfig = false,
+    ConfigLoadGuardUntil = 0,
+    _lastButtonPressAt = 0,
+    _lastButtonPressName = nil,
 
     Holder = nil,
     UnusedHolder = nil,
@@ -163,7 +167,7 @@ do
     end
 
     do
-        local targetPath = Library.Directory .. "/target.lua"
+        local targetPath = Library.Directory .. "/target.lua" --sert à rien
         if not isfile(targetPath) then
             pcall(writefile, targetPath, [=[-- discord.gg/artefact
 return {
@@ -1319,8 +1323,44 @@ return {
         return encoded
     end
 
+    Library.IsConfigLoadGuarded = function(Self)
+        if (Self or Library).IsLoadingConfig == true then
+            return true
+        end
+        return tick() < (tonumber((Self or Library).ConfigLoadGuardUntil) or 0)
+    end
+
+    Library.BeginConfigLoadGuard = function(Self)
+        local lib = Self or Library
+        lib.IsLoadingConfig = true
+        lib.ConfigLoadGuardUntil = tick() + 1.25
+        local frames = lib.OpenFrames
+        if type(frames) == "table" then
+            for _, OpenFrame in frames do
+                if OpenFrame and OpenFrame.IsOpen and type(OpenFrame.SetOpen) == "function" then
+                    pcall(function()
+                        OpenFrame:SetOpen(false)
+                    end)
+                end
+            end
+        end
+    end
+
+    Library.EndConfigLoadGuard = function(Self)
+        local lib = Self or Library
+        lib.IsLoadingConfig = false
+        lib.ConfigLoadGuardUntil = tick() + 0.85
+    end
+
     Library.LoadConfig = function(Self, Config)
-        local Decoded = HttpService:JSONDecode(Config)
+        Library:BeginConfigLoadGuard()
+        local decodeOk, Decoded = pcall(function()
+            return HttpService:JSONDecode(Config)
+        end)
+        if not decodeOk then
+            Library:EndConfigLoadGuard()
+            return false, Decoded
+        end
         local FlagData = type(Decoded) == "table" and Decoded.Flags or Decoded
         local LayoutData = type(Decoded) == "table" and Decoded.Layout
 
@@ -1456,6 +1496,7 @@ return {
             end
         end
 
+        Library:EndConfigLoadGuard()
         return Success, Result
     end
 
@@ -9625,11 +9666,27 @@ return {
             end
 
             function Button:Press()
-                Items["Button"]:ChangeItemTheme({ BackgroundColor3 = "Accent" })
-                Items["Button"]:Tween({ BackgroundColor3 = Library.Theme.Accent })
-                task.wait(0.1)
-                Items["Button"]:ChangeItemTheme({ BackgroundColor3 = "Element" })
-                Items["Button"]:Tween({ BackgroundColor3 = Library.Theme.Element })
+                local now = tick()
+                if now - (Library._lastButtonPressAt or 0) < 0.28
+                    and Library._lastButtonPressName
+                    and Library._lastButtonPressName ~= Button.Name
+                then
+                    return
+                end
+                Library._lastButtonPressAt = now
+                Library._lastButtonPressName = Button.Name
+
+                task.spawn(function()
+                    pcall(function()
+                        Items["Button"]:ChangeItemTheme({ BackgroundColor3 = "Accent" })
+                        Items["Button"]:Tween({ BackgroundColor3 = Library.Theme.Accent })
+                    end)
+                    task.wait(0.1)
+                    pcall(function()
+                        Items["Button"]:ChangeItemTheme({ BackgroundColor3 = "Element" })
+                        Items["Button"]:Tween({ BackgroundColor3 = Library.Theme.Element })
+                    end)
+                end)
 
                 Library:SafeCall(Button.Callback)
             end
@@ -10152,6 +10209,7 @@ return {
                     ScrollBarThickness = 3,
                     ScrollBarImageColor3 = Library.Theme["Accent"],
                     ScrollingDirection = Enum.ScrollingDirection.Y,
+                    ElasticBehavior = Enum.ElasticBehavior.Never,
                     Active = true
                 }):AddToTheme({ ScrollBarImageColor3 = 'Accent' })
 
@@ -10188,8 +10246,8 @@ return {
 
                     Dropdown.Value = Value
 
-                    for Index, Value in Value do
-                        local OptionData = Dropdown.Options[Value]
+                    for Index, OptionName in Value do
+                        local OptionData = Dropdown.Options[OptionName]
 
                         if not OptionData then
                             continue
@@ -10199,9 +10257,35 @@ return {
                         OptionData:ToggleState("Active")
                     end
 
+                    for Name, OptionData in pairs(Dropdown.Options) do
+                        local selected = false
+                        for _, OptionName in ipairs(Value) do
+                            if OptionName == Name then
+                                selected = true
+                                break
+                            end
+                        end
+                        if not selected then
+                            OptionData.IsSelected = false
+                            OptionData:ToggleState("Inactive")
+                        end
+                    end
+
                     Flags[Dropdown.Flag] = Value
-                    Items["Value"].Instance.Text = table.concat(Value, ", ")
+                    Items["Value"].Instance.Text = #Value > 0 and table.concat(Value, ", ") or "..."
                 else
+                    if Value == nil or Value == "" then
+                        Dropdown.Value = nil
+                        for _, OptionData in pairs(Dropdown.Options) do
+                            OptionData.IsSelected = false
+                            OptionData:ToggleState("Inactive")
+                        end
+                        Flags[Dropdown.Flag] = nil
+                        Items["Value"].Instance.Text = "..."
+                        Library:SafeCall(Dropdown.Callback, Dropdown.Value)
+                        return
+                    end
+
                     if not Dropdown.Options[Value] then
                         return
                     end
@@ -10210,13 +10294,13 @@ return {
 
                     Dropdown.Value = Value
 
-                    for Index, Value in Dropdown.Options do
-                        if Value ~= OptionData then
-                            Value.IsSelected = false
-                            Value:ToggleState("Inactive")
+                    for Index, Opt in pairs(Dropdown.Options) do
+                        if Opt ~= OptionData then
+                            Opt.IsSelected = false
+                            Opt:ToggleState("Inactive")
                         else
-                            Value.Selected = true
-                            Value:ToggleState("Active")
+                            Opt.Selected = true
+                            Opt:ToggleState("Active")
                         end
                     end
 
@@ -10339,6 +10423,12 @@ return {
             end
 
             function Dropdown:Refresh(List)
+                local scrollInst = Items["OptionScroll"] and Items["OptionScroll"].Instance
+                local savedScrollY = 0
+                if scrollInst and Dropdown.IsOpen then
+                    savedScrollY = scrollInst.CanvasPosition.Y
+                end
+
                 local toRemove = {}
                 for name in pairs(Dropdown.Options) do
                     table.insert(toRemove, name)
@@ -10383,6 +10473,17 @@ return {
 
                 if type(Dropdown.UpdateListSize) == "function" then
                     Dropdown:UpdateListSize()
+                end
+
+                if scrollInst and Dropdown.IsOpen then
+                    task.defer(function()
+                        if not scrollInst.Parent or not Dropdown.IsOpen then
+                            return
+                        end
+                        task.wait()
+                        local maxY = math.max(0, scrollInst.AbsoluteCanvasSize.Y - scrollInst.AbsoluteWindowSize.Y)
+                        scrollInst.CanvasPosition = Vector2.new(0, math.clamp(savedScrollY, 0, maxY))
+                    end)
                 end
             end
 
@@ -10997,8 +11098,8 @@ return {
 
                     Dropdown.Value = Value
 
-                    for Index, Value in Value do
-                        local OptionData = Dropdown.Options[Value]
+                    for Index, OptionName in Value do
+                        local OptionData = Dropdown.Options[OptionName]
 
                         if not OptionData then
                             continue
@@ -11008,8 +11109,39 @@ return {
                         OptionData:ToggleState("Active")
                     end
 
+                    for Name, OptionData in pairs(Dropdown.Options) do
+                        local selected = false
+                        for _, OptionName in ipairs(Value) do
+                            if OptionName == Name then
+                                selected = true
+                                break
+                            end
+                        end
+                        if not selected then
+                            OptionData.IsSelected = false
+                            OptionData:ToggleState("Inactive")
+                        end
+                    end
+
                     Flags[Dropdown.Flag] = Value
+                    if Items["Value"] then
+                        Items["Value"].Instance.Text = #Value > 0 and table.concat(Value, ", ") or "..."
+                    end
                 else
+                    if Value == nil or Value == "" then
+                        Dropdown.Value = nil
+                        for _, OptionData in pairs(Dropdown.Options) do
+                            OptionData.IsSelected = false
+                            OptionData:ToggleState("Inactive")
+                        end
+                        Flags[Dropdown.Flag] = nil
+                        if Items["Value"] then
+                            Items["Value"].Instance.Text = "..."
+                        end
+                        Library:SafeCall(Dropdown.Callback, Dropdown.Value)
+                        return
+                    end
+
                     if not Dropdown.Options[Value] then
                         return
                     end
@@ -11018,21 +11150,25 @@ return {
 
                     Dropdown.Value = Value
 
-                    for Index, Value in Dropdown.Options do
-                        if Value ~= OptionData then
-                            Value.IsSelected = false
-                            Value:ToggleState("Inactive")
+                    for Index, Opt in pairs(Dropdown.Options) do
+                        if Opt ~= OptionData then
+                            Opt.IsSelected = false
+                            Opt:ToggleState("Inactive")
                         else
-                            Value.Selected = true
-                            Value:ToggleState("Active")
+                            Opt.Selected = true
+                            Opt:ToggleState("Active")
                         end
                     end
 
                     Flags[Dropdown.Flag] = Value
+                    if Items["Value"] then
+                        Items["Value"].Instance.Text = Value
+                    end
                 end
 
                 Library:SafeCall(Dropdown.Callback, Dropdown.Value)
             end
+
 
             function Dropdown:Add(Value)
                 local OptionButton = Library:Create("TextButton", {
@@ -11586,8 +11722,13 @@ return {
                 ServerSec:Button({
                     Name = "Rejoin",
                     Callback = function()
-                        pcall(function()
-                            game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, game.JobId)
+                        task.defer(function()
+                            if Library:IsConfigLoadGuarded() then
+                                return
+                            end
+                            pcall(function()
+                                game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, game.JobId)
+                            end)
                         end)
                     end,
                 })
