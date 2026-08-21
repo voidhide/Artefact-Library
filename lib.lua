@@ -429,62 +429,12 @@ return {
     end
 
     Library.FadeDescendants = function(Self, Visibility, Callback)
-        if Visibility then
-            Self.Instance.Visible = true
+        local Object = Self and Self.Instance
+        if Object then
+            Object.Visible = Visibility and true or false
         end
-
-        local Children = Self.Instance:GetDescendants()
-        table.insert(Children, Self.Instance)
-
-        local Pending = 0
-        local Finished = false
-
-        local function Done()
-            if Finished then
-                return
-            end
-            Pending -= 1
-            if Pending > 0 then
-                return
-            end
-            Finished = true
-            Self.Instance.Visible = Visibility
-            if Callback then
-                Library:SafeCall(Callback)
-            end
-        end
-
-        for _, Child in Children do
-            local TransparencyProperty = Library:GetTweenProperty(Child)
-
-            if not TransparencyProperty then
-                continue
-            end
-
-            local function QueueFade(Property)
-                Pending += 1
-                local Tween = Library:Fade(Property, Visibility, Child)
-                if Tween then
-                    Library:Connect(Tween.Completed, Done)
-                else
-                    Done()
-                end
-            end
-
-            if type(TransparencyProperty) == "table" then
-                for _, Property in TransparencyProperty do
-                    QueueFade(Property)
-                end
-            else
-                QueueFade(TransparencyProperty)
-            end
-        end
-
-        if Pending == 0 then
-            Self.Instance.Visible = Visibility
-            if Callback then
-                Library:SafeCall(Callback)
-            end
+        if Callback then
+            Library:SafeCall(Callback)
         end
     end
 
@@ -7873,7 +7823,13 @@ return {
                         refreshSelectedStats()
                         if StatusDropdown and StatusDropdown.Set and not PlayerData.IsLocalPlayer then
                             pcall(function()
-                                StatusDropdown:Set(PlayerData.Status)
+                                local st = PlayerData.Status
+                                if st == "Enemy" then
+                                    st = "Target"
+                                elseif st == "Friendly" then
+                                    st = "Whitelist"
+                                end
+                                StatusDropdown:Set(st)
                             end)
                         end
                     else
@@ -7931,21 +7887,26 @@ return {
             StatusDropdown = Library:Dropdown({
                 Name = "Status",
                 Flag = "PlayerlistStatus",
-                Items = { "Neutral", "Enemy", "Friendly" },
+                Items = { "Neutral", "Target", "Whitelist" },
                 Parent = Items["StatusHost"],
                 Callback = function(Value)
                     if not Playerlist.Selected or Playerlist.Selected.IsLocalPlayer then
                         return
+                    end
+                    if Value == "Enemy" then
+                        Value = "Target"
+                    elseif Value == "Friendly" then
+                        Value = "Whitelist"
                     end
                     local PlayerItems = Playerlist.Selected.Items
                     if not PlayerItems then
                         return
                     end
                     local NeutralColor = Library.Theme["Text"]
-                    local EnemyColor = Color3.fromRGB(255, 0, 0)
-                    local FriendlyColor = Color3.fromRGB(0, 255, 0)
+                    local TargetColor = Color3.fromRGB(255, 0, 0)
+                    local WhitelistColor = Color3.fromRGB(0, 255, 0)
                     PlayerItems["Status"]:Tween({
-                        TextColor3 = Value == "Enemy" and EnemyColor or Value == "Friendly" and FriendlyColor or NeutralColor
+                        TextColor3 = Value == "Target" and TargetColor or Value == "Whitelist" and WhitelistColor or NeutralColor
                     })
                     PlayerItems["Status"].Instance.Text = Value
                     Playerlist.Selected.Status = Value
@@ -7997,6 +7958,22 @@ return {
 
             setDetailEmpty()
             Playerlist:Center()
+
+            Library.PlayerlistInstance = Playerlist
+            Library.get_priority = function(_, Player)
+                if typeof(Player) ~= "Instance" then
+                    return "neutral"
+                end
+                local entry = Playerlist.Players and Playerlist.Players[Player.Name]
+                local st = string.lower(tostring(entry and entry.Status or ""))
+                if st == "whitelist" or st == "friendly" then
+                    return "friendly"
+                end
+                if st == "target" or st == "enemy" then
+                    return "target"
+                end
+                return "neutral"
+            end
 
             return setmetatable(Playerlist, Library)
         end
@@ -8802,14 +8779,11 @@ return {
                 Page.Items = Items
             end
 
-            local Debounce = false
-
             function Page:Turn(Bool)
-                if Debounce then
+                Bool = Bool and true or false
+                if Page.Active == Bool then
                     return
                 end
-
-                Debounce = true
 
                 Page.Active = Bool
 
@@ -8824,10 +8798,6 @@ return {
                     Items["Text"]:ChangeItemTheme({ TextColor3 = "Text" })
                     Items["Text"]:Tween({ TextColor3 = Library.Theme.Text })
                 end
-
-                Items["Page"]:FadeDescendants(Bool, function()
-                    Debounce = false
-                end)
             end
 
             Items["InactiveInline"]:Connect("MouseButton1Down", function()
@@ -8954,16 +8924,13 @@ return {
                 Page.Items = Items
             end
 
-            local Debounce = false
-
             function Page:Turn(Bool)
-                if Debounce then
+                Bool = Bool and true or false
+                if Page.Active == Bool then
                     return
                 end
 
                 Page.Active = Bool
-
-                Debounce = true
 
                 if Bool then
                     Items["Page"].Instance.Parent = Page.Page.Items["Columns"].Instance
@@ -8976,10 +8943,6 @@ return {
                     Items["Inactive"]:ChangeItemTheme({ TextColor3 = "Text" })
                     Items["Inactive"]:Tween({ TextColor3 = Library.Theme.Text })
                 end
-
-                Items["Page"]:FadeDescendants(Bool, function()
-                    Debounce = false
-                end)
             end
 
             Items["Inactive"]:Connect("MouseButton1Down", function()
