@@ -9,6 +9,7 @@ local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local HttpService = game:GetService("HttpService")
+local TextService = game:GetService("TextService")
 local TweenService = game:GetService("TweenService")
 local Lighting = game:GetService("Lighting")
 local ContextActionService = game:GetService("ContextActionService")
@@ -45,6 +46,7 @@ local Library = {
     Threads = {},
     Connections = {},
     Notifications = {},
+    Windows = {},
     SetFlags = {},
     ConfigLoadedHooks = {},
 
@@ -252,6 +254,9 @@ return {
                         end)
                     end
                 end
+            end
+            if type(Self.RefreshPageTabSizes) == "function" then
+                pcall(Self.RefreshPageTabSizes, Self)
             end
             return true
         end
@@ -8414,7 +8419,6 @@ return {
                     Name = "\0",
                     Parent = Items["PagesOutline"].Instance,
                     FillDirection = Enum.FillDirection.Horizontal,
-                    HorizontalFlex = Enum.UIFlexAlignment.Fill,
                     Padding = UDim.new(0, 1),
                     SortOrder = Enum.SortOrder.LayoutOrder
                 })
@@ -8657,7 +8661,41 @@ return {
             UpdateDockState()
             Window:Center()
             Library:SetWindowVisibilityState(true)
+            table.insert(Library.Windows, Window)
             return setmetatable(Window, Library)
+        end
+
+        Library.RefreshPageTabSizes = function(Self)
+            local tabPadX = 24
+            local tabMinW = 44
+            for _, window in ipairs(Self.Windows or {}) do
+                for _, page in ipairs(window.Pages or {}) do
+                    local items = page.Items
+                    if not items or not items["Text"] or not items["Inactive"] then
+                        continue
+                    end
+                    local textInst = items["Text"].Instance
+                    local btnInst = items["Inactive"].Instance
+                    if not textInst or not btnInst then
+                        continue
+                    end
+                    local text = tostring(textInst.Text or page.Name or "")
+                    local textSize = tonumber(textInst.TextSize) or Self.FontSize or 9
+                    local font = textInst.FontFace
+                    if typeof(font) ~= "Font" then
+                        font = Self.Font
+                    end
+                    local measured = tabMinW
+                    local ok, sz = pcall(function()
+                        return TextService:GetTextSize(text, textSize, font, Vector2.new(10000, 30))
+                    end)
+                    if ok and sz then
+                        measured = math.max(tabMinW, math.ceil(sz.X) + tabPadX)
+                    end
+                    btnInst.AutomaticSize = Enum.AutomaticSize.None
+                    btnInst.Size = UDim2.new(0, measured, 1, 0)
+                end
+            end
         end
 
         Library.Page = function(Self, Params)
@@ -8682,7 +8720,8 @@ return {
                     TextColor3 = Color3.fromRGB(0, 0, 0),
                     Text = "",
                     AutoButtonColor = false,
-                    Size = UDim2.new(1, 0, 1, 0),
+                    AutomaticSize = Enum.AutomaticSize.X,
+                    Size = UDim2.new(0, 0, 1, 0),
                     BorderSizePixel = 0,
                     BackgroundColor3 = Library.Theme["Outline"]
                 }):AddToTheme({ BackgroundColor3 = 'Outline' })
@@ -8701,6 +8740,13 @@ return {
                     BackgroundColor3 = Library.Theme["Outline"]
                 }):AddToTheme({ BackgroundColor3 = 'Outline' })
 
+                Library:Create("UIPadding", {
+                    Name = "\0",
+                    Parent = Items["InactiveInline"].Instance,
+                    PaddingLeft = UDim.new(0, 10),
+                    PaddingRight = UDim.new(0, 10),
+                })
+
                 Library:Create("UIGradient", {
                     Name = "\0",
                     Parent = Items["InactiveInline"].Instance,
@@ -8716,7 +8762,8 @@ return {
                     FontFace = Library.Font,
                     TextSize = Library.FontSize,
                     Parent = Items["InactiveInline"].Instance,
-                    TextWrapped = true,
+                    TextWrapped = false,
+                    TextTruncate = Enum.TextTruncate.None,
                     TextColor3 = Library.Theme["Text"],
                     Text = Page.Name,
                     Size = UDim2.new(0, 0, 0, 15),
@@ -8811,6 +8858,11 @@ return {
             end
 
             table.insert(Page.Window.Pages, Page)
+            task.defer(function()
+                if type(Library.RefreshPageTabSizes) == "function" then
+                    pcall(Library.RefreshPageTabSizes, Library)
+                end
+            end)
             return setmetatable(Page, Library)
         end
 
