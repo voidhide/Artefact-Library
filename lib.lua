@@ -8419,6 +8419,7 @@ return {
                     Name = "\0",
                     Parent = Items["PagesOutline"].Instance,
                     FillDirection = Enum.FillDirection.Horizontal,
+                    HorizontalFlex = Enum.UIFlexAlignment.Fill,
                     Padding = UDim.new(0, 1),
                     SortOrder = Enum.SortOrder.LayoutOrder
                 })
@@ -8666,34 +8667,32 @@ return {
         end
 
         Library.RefreshPageTabSizes = function(Self)
-            local tabPadX = 24
-            local tabMinW = 44
             for _, window in ipairs(Self.Windows or {}) do
+                local outline = window.Items and window.Items["PagesOutline"] and window.Items["PagesOutline"].Instance
+                if outline then
+                    local layout = outline:FindFirstChildOfClass("UIListLayout")
+                    if layout then
+                        pcall(function()
+                            layout.HorizontalFlex = Enum.UIFlexAlignment.Fill
+                        end)
+                    end
+                end
                 for _, page in ipairs(window.Pages or {}) do
                     local items = page.Items
-                    if not items or not items["Text"] or not items["Inactive"] then
+                    if not items or not items["Inactive"] then
                         continue
                     end
-                    local textInst = items["Text"].Instance
                     local btnInst = items["Inactive"].Instance
-                    if not textInst or not btnInst then
+                    if not btnInst then
                         continue
-                    end
-                    local text = tostring(textInst.Text or page.Name or "")
-                    local textSize = tonumber(textInst.TextSize) or Self.FontSize or 9
-                    local font = textInst.FontFace
-                    if typeof(font) ~= "Font" then
-                        font = Self.Font
-                    end
-                    local measured = tabMinW
-                    local ok, sz = pcall(function()
-                        return TextService:GetTextSize(text, textSize, font, Vector2.new(10000, 30))
-                    end)
-                    if ok and sz then
-                        measured = math.max(tabMinW, math.ceil(sz.X) + tabPadX)
                     end
                     btnInst.AutomaticSize = Enum.AutomaticSize.None
-                    btnInst.Size = UDim2.new(0, measured, 1, 0)
+                    btnInst.Size = UDim2.new(0, 0, 1, 0)
+                    if not btnInst:FindFirstChildOfClass("UIFlexItem") then
+                        local flex = Instance.new("UIFlexItem")
+                        flex.FlexMode = Enum.UIFlexMode.Fill
+                        flex.Parent = btnInst
+                    end
                 end
             end
         end
@@ -8720,11 +8719,17 @@ return {
                     TextColor3 = Color3.fromRGB(0, 0, 0),
                     Text = "",
                     AutoButtonColor = false,
-                    AutomaticSize = Enum.AutomaticSize.X,
+                    AutomaticSize = Enum.AutomaticSize.None,
                     Size = UDim2.new(0, 0, 1, 0),
                     BorderSizePixel = 0,
                     BackgroundColor3 = Library.Theme["Outline"]
                 }):AddToTheme({ BackgroundColor3 = 'Outline' })
+
+                Library:Create("UIFlexItem", {
+                    Name = "\0",
+                    Parent = Items["Inactive"].Instance,
+                    FlexMode = Enum.UIFlexMode.Fill,
+                })
 
                 Items["InactiveInline"] = Library:Create("TextButton", {
                     Name = "\0",
