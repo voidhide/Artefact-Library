@@ -1448,13 +1448,68 @@ return {
             end
         end
 
-        if type(listfiles) == "function" then
-            local base = Library.Directory .. Library.Folders.Configs
-            for _, folder in ipairs({ base, base .. "/" }) do
-                local ok, list = pcall(listfiles, folder)
-                if ok and type(list) == "table" then
-                    for Index = 1, #list do
-                        addName(list[Index])
+        local listFn = listfiles
+        if type(listFn) ~= "function" and type(getgenv) == "function" then
+            local ok, env = pcall(getgenv)
+            if ok and type(env) == "table" and type(env.listfiles) == "function" then
+                listFn = env.listfiles
+            end
+        end
+
+        if type(listFn) == "function" then
+            local dir = Library.Directory or "Artefact"
+            local sub = (Library.Folders and Library.Folders.Configs) or "/Configs"
+            local base = dir .. sub
+            local folders = {
+                base,
+                base .. "/",
+                dir .. "\\Configs",
+                "Configs",
+                "Configs/",
+            }
+
+            local function scanList(list)
+                if type(list) == "string" then
+                    addName(list)
+                    return
+                end
+                if type(list) ~= "table" then
+                    return
+                end
+                for Index = 1, #list do
+                    addName(list[Index])
+                end
+                for _, file in pairs(list) do
+                    if type(file) == "string" then
+                        addName(file)
+                    end
+                end
+            end
+
+            for _, folder in ipairs(folders) do
+                local ok, list = pcall(listFn, folder)
+                if ok then
+                    scanList(list)
+                end
+            end
+
+            if #ReturnList == 0 then
+                local ok, list = pcall(listFn, "")
+                if ok then
+                    local dirPattern = dir:gsub("(%W)", "%%%1")
+                    local function scanRoot(file)
+                        if type(file) ~= "string" then
+                            return
+                        end
+                        local norm = file:gsub("\\", "/")
+                        if norm:match("^" .. dirPattern .. "/[Cc]onfigs/[^/]+%.json$") or norm:match("^[Cc]onfigs/[^/]+%.json$") then
+                            addName(norm)
+                        end
+                    end
+                    if type(list) == "table" then
+                        for _, file in pairs(list) do
+                            scanRoot(file)
+                        end
                     end
                 end
             end
