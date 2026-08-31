@@ -3271,6 +3271,7 @@ return {
                     AnchorPoint = Vector2.new(0, 0.5),
                     Position = UDim2.new(0, 10, 0.5, 0),
                     BorderSizePixel = 0,
+                    ClipsDescendants = true,
                     AutomaticSize = Enum.AutomaticSize.XY,
                     BackgroundColor3 = Library.Theme["Background"]
                 }):AddToTheme({ BackgroundColor3 = 'Background' })
@@ -3319,8 +3320,8 @@ return {
                 Items["AccentLiner"] = Library:Create("Frame", {
                     Name = "\0",
                     Parent = Items["KeybindList"].Instance,
-                    Position = UDim2.new(0, -2, 0, 20),
-                    Size = UDim2.new(1, 4, 0, 1),
+                    Position = UDim2.new(0, 0, 0, 20),
+                    Size = UDim2.new(1, 0, 0, 1),
                     BorderSizePixel = 0,
                     BackgroundColor3 = Library.Theme["Accent"]
                 }):AddToTheme({ BackgroundColor3 = 'Accent' })
@@ -3331,6 +3332,21 @@ return {
                     BackgroundTransparency = 1,
                     Position = UDim2.new(0, 0, 0, 25),
                     BorderSizePixel = 0,
+                    AutomaticSize = Enum.AutomaticSize.Y,
+                    Size = UDim2.new(1, 0, 0, 0)
+                })
+
+                Items["WidthSizer"] = Library:Create("TextLabel", {
+                    Name = "\0",
+                    FontFace = Library.Font,
+                    TextSize = Library.FontSize,
+                    Parent = Items["KeybindList"].Instance,
+                    TextColor3 = Library.Theme["Text"],
+                    Text = " ",
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(0, 0, 0, 0),
+                    BorderSizePixel = 0,
+                    Visible = false,
                     AutomaticSize = Enum.AutomaticSize.XY
                 })
 
@@ -3339,15 +3355,6 @@ return {
                     Parent = Items["Content"].Instance,
                     Padding = UDim.new(0, 2),
                     SortOrder = Enum.SortOrder.LayoutOrder
-                })
-
-                Library:Create("UIPadding", {
-                    Name = "\0",
-                    Parent = Items["KeybindList"].Instance,
-                    PaddingTop = UDim.new(0, 4),
-                    PaddingBottom = UDim.new(0, 4),
-                    PaddingRight = UDim.new(0, 8),
-                    PaddingLeft = UDim.new(0, 8)
                 })
             end
 
@@ -3369,6 +3376,17 @@ return {
             function KeybindList:Add(Key, Name, Mode)
                 local CanShowInKeybindsList = true
                 local LastActive = false
+                local WidthSizer = Items["WidthSizer"]
+
+                local function UpdateWidthSizer(Text)
+                    if not WidthSizer or not WidthSizer.Instance then
+                        return
+                    end
+                    local Current = WidthSizer.Instance.Text or ""
+                    if type(Text) == "string" and #Text > #Current then
+                        WidthSizer.Instance.Text = Text
+                    end
+                end
 
                 local NewKey = Library:Create("TextLabel", {
                     Name = "\0",
@@ -3378,14 +3396,18 @@ return {
                     TextColor3 = Library.Theme["Text"],
                     Text = Key .. " - " .. Name .. " - " .. Mode,
                     BackgroundTransparency = 1,
-                    Size = UDim2.new(0, 0, 0, 15),
+                    Size = UDim2.new(1, 0, 0, 15),
                     BorderSizePixel = 0,
                     Visible = false,
-                    AutomaticSize = Enum.AutomaticSize.X
+                    TextXAlignment = Enum.TextXAlignment.Left,
                 }):AddToTheme({ TextColor3 = 'Text' })
 
+                UpdateWidthSizer(NewKey.Instance.Text)
+
                 function NewKey:Set(Key, Name, Mode)
-                    NewKey.Instance.Text = Key .. " - " .. Name .. " - " .. Mode
+                    local Text = Key .. " - " .. Name .. " - " .. Mode
+                    NewKey.Instance.Text = Text
+                    UpdateWidthSizer(Text)
                 end
 
                 function NewKey:SetStatus(Bool)
