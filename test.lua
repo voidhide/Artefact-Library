@@ -229,17 +229,35 @@ return {
         end)
     end
 
+    local function LibraryAssetLooksReady(Asset, Path)
+        if type(Asset) ~= "string" or Asset == "" then
+            return false
+        end
+        local Lower = string.lower(Asset)
+        if string.find(Lower, "rbxasset", 1, true) then
+            return true
+        end
+        if Asset == Path or string.find(Asset, "[/\\]") then
+            return false
+        end
+        return #Asset >= 8
+    end
+
     local function LibraryGetCustomAsset(Path)
         local Fn = getcustomasset or getsynasset
         if type(Fn) ~= "function" then
             error("getcustomasset unavailable")
         end
-        local Ok, Asset = pcall(Fn, Path, true)
-        if Ok and type(Asset) == "string" and Asset ~= "" then
+        local Ok, Asset = pcall(Fn, Path)
+        if Ok and LibraryAssetLooksReady(Asset, Path) then
             return Asset
         end
-        Ok, Asset = pcall(Fn, Path)
-        if Ok and type(Asset) == "string" and Asset ~= "" then
+        Ok, Asset = pcall(Fn, Path, false)
+        if Ok and LibraryAssetLooksReady(Asset, Path) then
+            return Asset
+        end
+        Ok, Asset = pcall(Fn, Path, true)
+        if Ok and LibraryAssetLooksReady(Asset, Path) then
             return Asset
         end
         error("getcustomasset failed: " .. tostring(Path))
@@ -250,7 +268,7 @@ return {
             return false
         end
         local Magic = Bytes:sub(1, 4)
-        if Magic == "OTTO" or Magic == "wOFF" or Magic == "true" or Magic == "ttcf" then
+        if Magic == "OTTO" or Magic == "wOFF" or Magic == "wOF2" or Magic == "true" or Magic == "ttcf" then
             return true
         end
         local B1, B2, B3, B4 = Bytes:byte(1, 4)
@@ -259,9 +277,9 @@ return {
 
     local function LibraryResolveCustomAsset(Path)
         local LastErr
-        for _ = 1, 8 do
+        for _ = 1, 10 do
             local Ok, Asset = pcall(LibraryGetCustomAsset, Path)
-            if Ok and type(Asset) == "string" and Asset ~= "" then
+            if Ok and LibraryAssetLooksReady(Asset, Path) then
                 return Asset
             end
             LastErr = Asset
