@@ -1429,31 +1429,44 @@ return {
     end
 
     Library.GetConfigsList = function(Self, Element)
-        local List = {}
         local ReturnList = {}
+        local seen = {}
 
-        List = listfiles(Library.Directory .. Library.Folders.Configs)
-
-        for Index = 1, #List do
-            local File = List[Index]
-
-            if File:sub(-5) == ".json" then
-                local Position = File:find(".json", 1, true)
-                local StartPosition = Position
-
-                local Character = File:sub(Position, Position)
-                while Character ~= "/" and Character ~= "\\" and Character ~= "" do
-                    Position = Position - 1
-                    Character = File:sub(Position, Position)
+        local function addName(file)
+            if type(file) ~= "string" then
+                return
+            end
+            local name = file:match("([^/\\]+)%.json$")
+            if not name or name == "" then
+                if file:sub(-5):lower() == ".json" then
+                    name = file:sub(1, -6)
                 end
+            end
+            if name and name ~= "" and not seen[name] then
+                seen[name] = true
+                ReturnList[#ReturnList + 1] = name
+            end
+        end
 
-                if Character == "/" or Character == "\\" then
-                    table.insert(ReturnList, File:sub(Position + 1, StartPosition - 1))
+        if type(listfiles) == "function" then
+            local base = Library.Directory .. Library.Folders.Configs
+            for _, folder in ipairs({ base, base .. "/" }) do
+                local ok, list = pcall(listfiles, folder)
+                if ok and type(list) == "table" then
+                    for Index = 1, #list do
+                        addName(list[Index])
+                    end
                 end
             end
         end
 
-        Element:Refresh(ReturnList)
+        table.sort(ReturnList, function(a, b)
+            return a:lower() < b:lower()
+        end)
+
+        if Element and type(Element.Refresh) == "function" then
+            Element:Refresh(ReturnList)
+        end
     end
 
     Library.AddToTheme = function(Self, Properties)
