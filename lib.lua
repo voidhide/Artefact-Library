@@ -312,32 +312,17 @@ return {
         for Index, Property in Properties do
             if Property == "FontFace" then
                 Data.Instance[Property] = Library.Font
-                continue
-            end
-
-            if Property == "TextSize" then
+            elseif Property == "TextSize" then
                 Data.Instance[Property] = Library.FontSize
-                continue
-            end
-
-            if Property == "Name" then
+            elseif Property == "Name" then
                 Data.Instance[Property] = "\0"
-                continue
+            elseif Class == "TextButton" and Property == "AutoButtonColor" then
+                Data.Instance[Property] = false
+            elseif Class == "TextButton" and Property == "Text" then
+                Data.Instance[Property] = ""
+            else
+                Data.Instance[Index] = Property
             end
-
-            if Class == "TextButton" then
-                if Property == "AutoButtonColor" then
-                    Data.Instance[Property] = false
-                    continue
-                end
-
-                if Property == "Text" then
-                    Data.Instance[Property] = ""
-                    continue
-                end
-            end
-
-            Data.Instance[Index] = Property
         end
 
         return setmetatable(Data, Library)
@@ -933,24 +918,12 @@ return {
             while Library and Library.BackgroundEffects do
                 local Effects = Library.BackgroundEffects
 
-                if not Effects.IsSnowing then
-                    task.wait(0.1)
-                    continue
-                end
-
-                local Holder = Effects.SnowHolder
-                if not Holder or not Holder.Parent then
-                    task.wait(0.1)
-                    continue
-                end
-
-                local Width = Holder.AbsoluteSize.X
-                local Height = Holder.AbsoluteSize.Y
-                if Width <= 0 or Height <= 0 then
-                    task.wait(0.1)
-                    continue
-                end
-
+                if Effects.IsSnowing then
+                    local Holder = Effects.SnowHolder
+                    if Holder and Holder.Parent then
+                        local Width = Holder.AbsoluteSize.X
+                        local Height = Holder.AbsoluteSize.Y
+                        if Width > 0 and Height > 0 then
                 local Image = Instance.new("ImageLabel")
                 Image.Name = "\0"
                 Image.Parent = Holder
@@ -982,6 +955,15 @@ return {
                 end)
 
                 task.wait(0.1)
+                        else
+                            task.wait(0.1)
+                        end
+                    else
+                        task.wait(0.1)
+                    end
+                else
+                    task.wait(0.1)
+                end
             end
         end)
     end
@@ -1084,30 +1066,28 @@ return {
 
         for Id, Data in Library.LayoutRegistry do
             local Instance = Data and Data.Instance
-            if not Instance or not Instance.Parent then
-                continue
-            end
+            if Instance and Instance.Parent then
+                local Entry = {}
+                local Position = Instance.Position
 
-            local Entry = {}
-            local Position = Instance.Position
+                if Data.SavePosition ~= false then
+                    Entry.Position = {
+                        X = math.floor((tonumber(Position.X.Offset) or 0) + 0.5),
+                        Y = math.floor((tonumber(Position.Y.Offset) or 0) + 0.5)
+                    }
+                end
 
-            if Data.SavePosition ~= false then
-                Entry.Position = {
-                    X = math.floor((tonumber(Position.X.Offset) or 0) + 0.5),
-                    Y = math.floor((tonumber(Position.Y.Offset) or 0) + 0.5)
-                }
-            end
+                if Data.SaveSize == true then
+                    local Size = Instance.Size
+                    Entry.Size = {
+                        X = math.floor((tonumber(Size.X.Offset) or 0) + 0.5),
+                        Y = math.floor((tonumber(Size.Y.Offset) or 0) + 0.5)
+                    }
+                end
 
-            if Data.SaveSize == true then
-                local Size = Instance.Size
-                Entry.Size = {
-                    X = math.floor((tonumber(Size.X.Offset) or 0) + 0.5),
-                    Y = math.floor((tonumber(Size.Y.Offset) or 0) + 0.5)
-                }
-            end
-
-            if next(Entry) ~= nil then
-                Layout[Id] = Entry
+                if next(Entry) ~= nil then
+                    Layout[Id] = Entry
+                end
             end
         end
 
@@ -1122,11 +1102,8 @@ return {
         for Id, State in Layout do
             local Data = Library.LayoutRegistry[Id]
             local Instance = Data and Data.Instance
-            if not Instance or not Instance.Parent or type(State) ~= "table" then
-                continue
-            end
-
-            local ParentSize = Instance.Parent.AbsoluteSize
+            if Instance and Instance.Parent and type(State) == "table" then
+                local ParentSize = Instance.Parent.AbsoluteSize
             local MinimumSize = Data.MinimumSize or Vector2.new(0, 0)
             local MaximumSize = Data.MaximumSize
 
@@ -1169,6 +1146,7 @@ return {
                     math.clamp(math.floor(Y + 0.5), 0, math.max(ParentSize.Y - Height, 0))
                 )
             end
+            end
         end
     end
 
@@ -1179,6 +1157,9 @@ return {
                 return { Color = "#" .. Value:ToHex(), Alpha = 1 }
             end
             if valueType == "Vector2" or valueType == "Vector3" or valueType == "UDim2" or valueType == "EnumItem" then
+                return nil
+            end
+            if valueType == "Font" or valueType == "userdata" then
                 return nil
             end
             if valueType == "Instance" or valueType == "function" or valueType == "thread" then
@@ -1377,56 +1358,48 @@ return {
 
         local Success, Result = Library:SafeCall(function()
             for Index, Value in FlagData do
-                if type(Value) == "table" and Value.Key then
-                    continue
-                end
-
-                local SetFunction = Library.SetFlags[Index]
-                if not SetFunction then
-                    applyRawFlag(Index, Value)
-                    continue
-                end
-
-                if type(Value) == "table" and Value.Color then
-                    SetFunction(Value.Color, Value.Alpha)
-                elseif type(Value) == "table" then
-                    local asArray = {}
-                    local looksLikeBoolMap = true
-                    for k, v in pairs(Value) do
-                        if type(k) == "number" then
-                            looksLikeBoolMap = false
-                            break
+                if type(Value) ~= "table" or Value.Key == nil then
+                    local SetFunction = Library.SetFlags[Index]
+                    if not SetFunction then
+                        applyRawFlag(Index, Value)
+                    elseif type(Value) == "table" and Value.Color then
+                        SetFunction(Value.Color, Value.Alpha)
+                    elseif type(Value) == "table" then
+                        local asArray = {}
+                        local looksLikeBoolMap = true
+                        for k, v in pairs(Value) do
+                            if type(k) == "number" then
+                                looksLikeBoolMap = false
+                                break
+                            end
+                            if type(k) == "string" and v == true then
+                                asArray[#asArray + 1] = k
+                            else
+                                looksLikeBoolMap = false
+                                break
+                            end
                         end
-                        if type(k) == "string" and v == true then
-                            asArray[#asArray + 1] = k
+                        if looksLikeBoolMap and #asArray > 0 then
+                            table.sort(asArray)
+                            SetFunction(asArray)
                         else
-                            looksLikeBoolMap = false
-                            break
+                            SetFunction(Value)
                         end
-                    end
-                    if looksLikeBoolMap and #asArray > 0 then
-                        table.sort(asArray)
-                        SetFunction(asArray)
                     else
                         SetFunction(Value)
                     end
-                else
-                    SetFunction(Value)
                 end
             end
 
             for Index, Value in FlagData do
-                if type(Value) ~= "table" or not Value.Key then
-                    continue
+                if type(Value) == "table" and Value.Key then
+                    local SetFunction = Library.SetFlags[Index]
+                    if not SetFunction then
+                        applyRawFlag(Index, Value)
+                    else
+                        SetFunction(Value)
+                    end
                 end
-
-                local SetFunction = Library.SetFlags[Index]
-                if not SetFunction then
-                    applyRawFlag(Index, Value)
-                    continue
-                end
-
-                SetFunction(Value)
             end
         end)
 
@@ -1549,44 +1522,33 @@ return {
         for Key, Item in Library.OpenFrames do
             if not Item then
                 table.insert(StaleEntries, Key)
-                continue
-            end
+            else
+                local IsOpen = Item.IsOpen
+                local AttachedButton = Item.AttachedButton
+                local Frame = Item.Frame
+                local CanUpdateNow = Item.CanUpdateNow
 
-            local IsOpen = Item.IsOpen
-            local AttachedButton = Item.AttachedButton
-            local Frame = Item.Frame
+                if not IsOpen then
+                    table.insert(StaleEntries, Key)
+                elseif CanUpdateNow
+                    and AttachedButton and AttachedButton.Parent
+                    and Frame and Frame.Parent
+                then
+                    local ParentSize = Frame.Parent.AbsoluteSize
+                    local FrameSize = Frame.AbsoluteSize
+                    local X = AttachedButton.AbsolutePosition.X
+                    local Y = AttachedButton.AbsolutePosition.Y + AttachedButton.AbsoluteSize.Y + 10 + GuiInset
 
-            local CanUpdateNow = Item.CanUpdateNow
+                    if ParentSize.X > 0 and FrameSize.X > 0 then
+                        X = math.clamp(X, 0, math.max(ParentSize.X - FrameSize.X, 0))
+                    end
 
-            if not IsOpen then
-                table.insert(StaleEntries, Key)
-                continue
-            end
+                    if ParentSize.Y > 0 and FrameSize.Y > 0 then
+                        Y = math.clamp(Y, 0, math.max(ParentSize.Y - FrameSize.Y, 0))
+                    end
 
-            if not CanUpdateNow then
-                continue
-            end
-
-            if not AttachedButton or not AttachedButton.Parent or not Frame or not Frame.Parent then
-                table.insert(StaleEntries, Key)
-                continue
-            end
-
-            if CanUpdateNow and IsOpen then
-                local ParentSize = Frame.Parent.AbsoluteSize
-                local FrameSize = Frame.AbsoluteSize
-                local X = AttachedButton.AbsolutePosition.X
-                local Y = AttachedButton.AbsolutePosition.Y + AttachedButton.AbsoluteSize.Y + 10 + GuiInset
-
-                if ParentSize.X > 0 and FrameSize.X > 0 then
-                    X = math.clamp(X, 0, math.max(ParentSize.X - FrameSize.X, 0))
+                    Frame.Position = UDim2.fromOffset(X, Y)
                 end
-
-                if ParentSize.Y > 0 and FrameSize.Y > 0 then
-                    Y = math.clamp(Y, 0, math.max(ParentSize.Y - FrameSize.Y, 0))
-                end
-
-                Frame.Position = UDim2.fromOffset(X, Y)
             end
         end
 
@@ -2224,11 +2186,9 @@ return {
                 table.insert(Descendants, CopyPasteWindow)
 
                 for _, Value in Descendants do
-                    if Value.ClassName:find("UI") then
-                        continue
+                    if not Value.ClassName:find("UI") then
+                        Value.ZIndex = CopyPasteMenu.IsOpen and 4 or 1
                     end
-
-                    Value.ZIndex = CopyPasteMenu.IsOpen and 4 or 1
                 end
             end
 
@@ -2285,11 +2245,9 @@ return {
                 table.insert(Descendants, ColorpickerWindow)
 
                 for Index, Value in Descendants do
-                    if Value.ClassName:find("UI") then
-                        continue
+                    if not Value.ClassName:find("UI") then
+                        Value.ZIndex = Colorpicker.IsOpen and 4 or 1
                     end
-
-                    Value.ZIndex = Colorpicker.IsOpen and 4 or 1
                 end
 
                 Items["PaletteDragger"].Instance.ZIndex = 5
@@ -2780,11 +2738,9 @@ return {
                 table.insert(Descendants, KeybindWindow)
 
                 for Index, Value in Descendants do
-                    if Value.ClassName:find("UI") then
-                        continue
+                    if not Value.ClassName:find("UI") then
+                        Value.ZIndex = Keybind.IsOpen and 4 or 1
                     end
-
-                    Value.ZIndex = Keybind.IsOpen and 4 or 1
                 end
             end
 
@@ -8672,19 +8628,15 @@ return {
                 end
                 for _, page in ipairs(window.Pages or {}) do
                     local items = page.Items
-                    if not items or not items["Inactive"] then
-                        continue
-                    end
-                    local btnInst = items["Inactive"].Instance
-                    if not btnInst then
-                        continue
-                    end
-                    btnInst.AutomaticSize = Enum.AutomaticSize.None
-                    btnInst.Size = UDim2.new(0, 0, 1, 0)
-                    if not btnInst:FindFirstChildOfClass("UIFlexItem") then
-                        local flex = Instance.new("UIFlexItem")
-                        flex.FlexMode = Enum.UIFlexMode.Fill
-                        flex.Parent = btnInst
+                    local btnInst = items and items["Inactive"] and items["Inactive"].Instance
+                    if btnInst then
+                        btnInst.AutomaticSize = Enum.AutomaticSize.None
+                        btnInst.Size = UDim2.new(0, 0, 1, 0)
+                        if not btnInst:FindFirstChildOfClass("UIFlexItem") then
+                            local flex = Instance.new("UIFlexItem")
+                            flex.FlexMode = Enum.UIFlexMode.Fill
+                            flex.Parent = btnInst
+                        end
                     end
                 end
             end
@@ -9232,28 +9184,26 @@ return {
                     local children = Library.KeybindParents and Library.KeybindParents[Toggle.Flag]
                     if children then
                         for _, kb in ipairs(children) do
-                            if not kb then
-                                continue
-                            end
-                            local st = Flags[kb.Flag]
-                            if type(st) ~= "table" then
-                                continue
-                            end
-                            if st.Mode == "Always" then
-                                kb.Toggled = true
-                                kb.Mode = "Always"
-                                Flags[kb.Flag] = {
-                                    Mode = "Always",
-                                    Key = st.Key or kb.Key,
-                                    Toggled = true,
-                                }
-                            elseif st.Toggled == true then
-                                kb.Toggled = true
-                                Flags[kb.Flag] = {
-                                    Mode = st.Mode or kb.Mode or "Toggle",
-                                    Key = st.Key or kb.Key,
-                                    Toggled = true,
-                                }
+                            if kb then
+                                local st = Flags[kb.Flag]
+                                if type(st) == "table" then
+                                    if st.Mode == "Always" then
+                                        kb.Toggled = true
+                                        kb.Mode = "Always"
+                                        Flags[kb.Flag] = {
+                                            Mode = "Always",
+                                            Key = st.Key or kb.Key,
+                                            Toggled = true,
+                                        }
+                                    elseif st.Toggled == true then
+                                        kb.Toggled = true
+                                        Flags[kb.Flag] = {
+                                            Mode = st.Mode or kb.Mode or "Toggle",
+                                            Key = st.Key or kb.Key,
+                                            Toggled = true,
+                                        }
+                                    end
+                                end
                             end
                         end
                     end
@@ -9477,11 +9427,9 @@ return {
                     table.insert(Descendants, SettingsHolder)
 
                     for Index, Value in Descendants do
-                        if Value.ClassName:find("UI") then
-                            continue
+                        if not Value.ClassName:find("UI") then
+                            Value.ZIndex = Settingss.IsOpen and 2 or 1
                         end
-
-                        Value.ZIndex = Settingss.IsOpen and 2 or 1
                     end
                 end
 
@@ -10262,12 +10210,10 @@ return {
                     for Index, OptionName in Value do
                         local OptionData = Dropdown.Options[OptionName]
 
-                        if not OptionData then
-                            continue
+                        if OptionData then
+                            OptionData.IsSelected = true
+                            OptionData:ToggleState("Active")
                         end
-
-                        OptionData.IsSelected = true
-                        OptionData:ToggleState("Active")
                     end
 
                     for Name, OptionData in pairs(Dropdown.Options) do
@@ -10618,14 +10564,12 @@ return {
                 table.insert(Descendants, OptionHolder)
 
                 for Index, Value in Descendants do
-                    if Value.ClassName:find("UI") then
-                        continue
-                    end
-
-                    if not Params.Parent then
-                        Value.ZIndex = Dropdown.IsOpen and 3 or 1
-                    else
-                        Value.ZIndex = Dropdown.IsOpen and 6 or 1
+                    if not Value.ClassName:find("UI") then
+                        if not Params.Parent then
+                            Value.ZIndex = Dropdown.IsOpen and 3 or 1
+                        else
+                            Value.ZIndex = Dropdown.IsOpen and 6 or 1
+                        end
                     end
                 end
             end
@@ -11114,12 +11058,10 @@ return {
                     for Index, OptionName in Value do
                         local OptionData = Dropdown.Options[OptionName]
 
-                        if not OptionData then
-                            continue
+                        if OptionData then
+                            OptionData.IsSelected = true
+                            OptionData:ToggleState("Active")
                         end
-
-                        OptionData.IsSelected = true
-                        OptionData:ToggleState("Active")
                     end
 
                     for Name, OptionData in pairs(Dropdown.Options) do
