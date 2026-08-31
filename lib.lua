@@ -309,19 +309,19 @@ return {
             Instance = Instance.new(Class)
         }
 
-        for Index, Property in Properties do
-            if Property == "FontFace" then
-                Data.Instance[Property] = Library.Font
-            elseif Property == "TextSize" then
-                Data.Instance[Property] = Library.FontSize
-            elseif Property == "Name" then
-                Data.Instance[Property] = "\0"
-            elseif Class == "TextButton" and Property == "AutoButtonColor" then
-                Data.Instance[Property] = false
-            elseif Class == "TextButton" and Property == "Text" then
-                Data.Instance[Property] = ""
+        for Index, Value in Properties do
+            if Index == "FontFace" then
+                Data.Instance[Index] = Library.Font
+            elseif Index == "TextSize" then
+                Data.Instance[Index] = Library.FontSize
+            elseif Index == "Name" then
+                Data.Instance[Index] = "\0"
+            elseif Class == "TextButton" and Index == "AutoButtonColor" then
+                Data.Instance[Index] = false
+            elseif Class == "TextButton" and Index == "Text" then
+                Data.Instance[Index] = ""
             else
-                Data.Instance[Index] = Property
+                Data.Instance[Index] = Value
             end
         end
 
@@ -1470,7 +1470,7 @@ return {
                 if ThemeColor then
                     Object[Property] = ThemeColor
                 end
-            else
+            elseif type(Value) == "function" then
                 Object[Property] = Value()
             end
         end
