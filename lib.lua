@@ -849,8 +849,11 @@ return {
  end
  end
 
- for _, Callback in Library.WindowVisibilityBindings do
+ local bindings = Library.WindowVisibilityBindings
+ if type(bindings) == "table" then
+ for _, Callback in bindings do
  Library:SafeCall(Callback, Library.WindowOpenState)
+ end
  end
  end
 
@@ -1470,6 +1473,9 @@ return {
  end
 
  Library.AddToTheme = function(Self, Properties)
+ if not Self or not Self.Instance then
+ return Self
+ end
  local Object = Self.Instance
 
  local ThemeData = {
@@ -7821,6 +7827,9 @@ return {
  end
 
  function Playerlist:Remove(Player)
+ if not Player or type(Player.Name) ~= "string" or Player.Name == "" then
+ return
+ end
  local entry = Playerlist.Players[Player.Name]
  if not entry then
  return
@@ -10384,6 +10393,9 @@ return {
  end
 
  function Dropdown:Remove(Option)
+ if type(Option) ~= "string" or Option == "" then
+ return
+ end
  if Dropdown.Options[Option] then
  Dropdown.Options[Option].Button.Instance:Destroy()
  Dropdown.Options[Option] = nil
@@ -10394,6 +10406,7 @@ return {
  end
 
  function Dropdown:Refresh(List)
+ List = type(List) == "table" and List or {}
  local scrollInst = Items["OptionScroll"] and Items["OptionScroll"].Instance
  local savedScrollY = 0
  if scrollInst and Dropdown.IsOpen then
@@ -11228,6 +11241,9 @@ return {
  end
 
  function Dropdown:Remove(Option)
+ if type(Option) ~= "string" or Option == "" then
+ return
+ end
  if Dropdown.Options[Option] then
  Dropdown.Options[Option].Button.Instance:Destroy()
  Dropdown.Options[Option] = nil
@@ -11235,12 +11251,18 @@ return {
  end
 
  function Dropdown:Refresh(List)
- for Index, Value in Dropdown.Options do
- Dropdown:Remove(Value.Name)
+ List = type(List) == "table" and List or {}
+ local toRemove = {}
+ for name in pairs(Dropdown.Options) do
+ table.insert(toRemove, name)
  end
-
- for Index, Value in List do
+ for _, name in ipairs(toRemove) do
+ Dropdown:Remove(name)
+ end
+ for _, Value in ipairs(List) do
+ if type(Value) == "string" and Value ~= "" then
  Dropdown:Add(Value)
+ end
  end
  end
 
