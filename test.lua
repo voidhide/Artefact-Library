@@ -198,201 +198,62 @@ return {
 
     Library.Theme = Themes.Preset
 
-    local function LibraryIsFontFace(Value)
-        if Value == nil then
-            return false
-        end
-        if typeof(Value) == "Font" then
-            return true
-        end
-        local Ok, Family = pcall(function()
-            return Value.Family
-        end)
-        return Ok and type(Family) == "string" and Family ~= ""
-    end
-
-    local function LibraryApplyFontToInstance(Inst, FontObject)
-        if not Inst then
-            return
-        end
-        local OkClass, IsText = pcall(function()
-            return Inst:IsA("TextLabel") or Inst:IsA("TextButton") or Inst:IsA("TextBox")
-        end)
-        if not OkClass or not IsText then
-            return
-        end
-        pcall(function()
-            Inst.Font = Enum.Font.Unknown
-        end)
-        pcall(function()
-            Inst.FontFace = FontObject
-        end)
-    end
-
-    local function LibraryAssetLooksReady(Asset, Path)
-        if type(Asset) ~= "string" or Asset == "" then
-            return false
-        end
-        local Lower = string.lower(Asset)
-        if string.find(Lower, "rbxasset", 1, true) then
-            return true
-        end
-        if Asset == Path or string.find(Asset, "[/\\]") then
-            return false
-        end
-        return #Asset >= 8
-    end
-
-    local function LibraryGetCustomAsset(Path)
-        local Fn = getcustomasset or getsynasset
-        if type(Fn) ~= "function" then
-            error("getcustomasset unavailable")
-        end
-        local Ok, Asset = pcall(Fn, Path)
-        if Ok and LibraryAssetLooksReady(Asset, Path) then
-            return Asset
-        end
-        Ok, Asset = pcall(Fn, Path, false)
-        if Ok and LibraryAssetLooksReady(Asset, Path) then
-            return Asset
-        end
-        Ok, Asset = pcall(Fn, Path, true)
-        if Ok and LibraryAssetLooksReady(Asset, Path) then
-            return Asset
-        end
-        error("getcustomasset failed: " .. tostring(Path))
-    end
-
-    local function LibraryLooksLikeFontFile(Bytes)
-        if type(Bytes) ~= "string" or #Bytes < 4 then
-            return false
-        end
-        local Magic = Bytes:sub(1, 4)
-        if Magic == "OTTO" or Magic == "wOFF" or Magic == "wOF2" or Magic == "true" or Magic == "ttcf" then
-            return true
-        end
-        local B1, B2, B3, B4 = Bytes:byte(1, 4)
-        return B1 == 0 and B2 == 1 and B3 == 0 and B4 == 0
-    end
-
-    local function LibraryResolveCustomAsset(Path)
-        local LastErr
-        for _ = 1, 10 do
-            local Ok, Asset = pcall(LibraryGetCustomAsset, Path)
-            if Ok and LibraryAssetLooksReady(Asset, Path) then
-                return Asset
-            end
-            LastErr = Asset
-            task.wait(0.05)
-        end
-        error(tostring(LastErr or "getcustomasset failed"))
-    end
-
     local CustomFont = {}
     do
         function CustomFont:New(Name, Weight, Style, Data)
-            Data = Data or {}
-            Name = tostring(Name or "CustomFont"):gsub("[^%w%-_]", "_")
-            if Name == "" then
-                Name = "CustomFont"
-            end
-
-            local AssetsDir = Library.Directory .. Library.Folders.Assets
-            if type(isfolder) == "function" and type(makefolder) == "function" then
-                if not isfolder(Library.Directory) then
-                    makefolder(Library.Directory)
-                end
-                if not isfolder(AssetsDir) then
-                    makefolder(AssetsDir)
-                end
-            end
-
-            local TtfPath = Data.Id
-            if not string.find(tostring(TtfPath), "[/\\]") then
-                if not string.find(string.lower(tostring(TtfPath)), "%.ttf$") and not string.find(string.lower(tostring(TtfPath)), "%.otf$") then
-                    TtfPath = AssetsDir .. "/" .. tostring(Data.Id) .. ".ttf"
+            local assetsDir = Library.Directory .. Library.Folders.Assets
+            local ttfPath = Data.Id
+            if not string.find(tostring(ttfPath), "[/\\]") then
+                if not string.find(string.lower(tostring(ttfPath)), "%.ttf$") and not string.find(string.lower(tostring(ttfPath)), "%.otf$") then
+                    ttfPath = assetsDir .. "/" .. tostring(Data.Id) .. ".ttf"
                 else
-                    TtfPath = AssetsDir .. "/" .. tostring(Data.Id)
+                    ttfPath = assetsDir .. "/" .. tostring(Data.Id)
                 end
             end
 
-            local Existing
-            if type(isfile) == "function" and isfile(TtfPath) and type(readfile) == "function" then
-                Existing = readfile(TtfPath)
-            end
-            if not LibraryLooksLikeFontFile(Existing) then
-                if type(Data.Url) ~= "string" or Data.Url == "" then
-                    error("font url missing: " .. Name)
-                end
-                local Body = game:HttpGet(Data.Url)
-                if not LibraryLooksLikeFontFile(Body) then
-                    error("font download failed: " .. tostring(Data.Url))
-                end
-                writefile(TtfPath, Body)
+            if not isfile(ttfPath) then
+                writefile(ttfPath, game:HttpGet(Data.Url))
             end
 
-            local TtfAsset = LibraryResolveCustomAsset(TtfPath)
-            local FontJson = {
+            local fontJson = {
                 name = Name,
                 faces = {
                     {
                         name = Name,
-                        weight = Weight or 400,
-                        style = Style or "Regular",
-                        assetId = TtfAsset
+                        weight = Weight,
+                        style = Style,
+                        assetId = getcustomasset(ttfPath)
                     }
                 }
             }
 
-            local FontJsonPath = AssetsDir .. "/" .. Name .. ".font"
-            writefile(FontJsonPath, HttpService:JSONEncode(FontJson))
-
-            local FamilyAsset = LibraryResolveCustomAsset(FontJsonPath)
-            local FontObject = Font.new(FamilyAsset)
-            if not LibraryIsFontFace(FontObject) then
-                task.wait(0.05)
-                FamilyAsset = LibraryResolveCustomAsset(FontJsonPath)
-                FontObject = Font.new(FamilyAsset)
-            end
-            if not LibraryIsFontFace(FontObject) then
-                error("Font.new failed: " .. Name)
-            end
-            return FontObject
+            local fontJsonPath = `{assetsDir}/{Name}.font`
+            writefile(fontJsonPath, HttpService:JSONEncode(fontJson))
+            return Font.new(getcustomasset(fontJsonPath))
         end
 
         Library.CustomFont = CustomFont
-        Library.IsFontFace = LibraryIsFontFace
-        Library.ApplyFontToInstance = function(_, Inst, FontObject)
-            LibraryApplyFontToInstance(Inst, FontObject)
-        end
 
         Library.SetFont = function(Self, FontObject)
-            if not LibraryIsFontFace(FontObject) then
+            if typeof(FontObject) ~= "Font" then
                 return false
             end
             Self.Font = FontObject
-
-            local function ApplyRoot(Root)
-                if not Root then
-                    return
-                end
-                LibraryApplyFontToInstance(Root, FontObject)
-                local Ok, Descendants = pcall(function()
-                    return Root:GetDescendants()
-                end)
-                if not Ok or type(Descendants) ~= "table" then
-                    return
-                end
-                for _, Desc in ipairs(Descendants) do
-                    LibraryApplyFontToInstance(Desc, FontObject)
-                end
-            end
-
+            local roots = {}
             if Self.Holder and Self.Holder.Instance then
-                ApplyRoot(Self.Holder.Instance)
+                table.insert(roots, Self.Holder.Instance)
             end
             if Self.UnusedHolder and Self.UnusedHolder.Instance then
-                ApplyRoot(Self.UnusedHolder.Instance)
+                table.insert(roots, Self.UnusedHolder.Instance)
+            end
+            for _, root in ipairs(roots) do
+                for _, desc in ipairs(root:GetDescendants()) do
+                    if desc:IsA("TextLabel") or desc:IsA("TextButton") or desc:IsA("TextBox") then
+                        pcall(function()
+                            desc.FontFace = FontObject
+                        end)
+                    end
+                end
             end
             if type(Self.RefreshPageTabSizes) == "function" then
                 pcall(Self.RefreshPageTabSizes, Self)
@@ -400,17 +261,10 @@ return {
             return true
         end
 
-        local OkDefault, DefaultFont = pcall(function()
-            return CustomFont:New("SmallestPixel7", 400, "Regular", {
-                Id = "SmallestPixel7",
-                Url = "https://github.com/sametexe001/luas/raw/refs/heads/main/smallest_pixel-7.ttf"
-            })
-        end)
-        if OkDefault and LibraryIsFontFace(DefaultFont) then
-            Library.Font = DefaultFont
-        else
-            Library.Font = Font.fromEnum(Enum.Font.Gotham)
-        end
+        Library.Font = CustomFont:New("SmallestPixel7", 400, "Regular", {
+            Id = "SmallestPixel7",
+            Url = "https://github.com/sametexe001/luas/raw/refs/heads/main/smallest_pixel-7.ttf"
+        })
     end
 
     Library.Exit = function(Self)
@@ -457,9 +311,7 @@ return {
 
         for Index, Value in Properties do
             if Index == "FontFace" then
-                LibraryApplyFontToInstance(Data.Instance, Library.Font)
-            elseif Index == "Font" then
-                -- custom FontFace wins; skip Enum.Font so it cannot override it
+                Data.Instance[Index] = Library.Font
             elseif Index == "TextSize" then
                 Data.Instance[Index] = Library.FontSize
             elseif Index == "Name" then
@@ -8811,7 +8663,28 @@ return {
                 Window:SetOpen(not Window.IsOpen)
             end)
 
-            Library:Connect(UserInputService.InputBegan, function(Input)
+            Library:Connect(UserInputService.InputBegan, function(Input, GPE)
+                if GPE then
+                    return
+                end
+                if UserInputService:GetFocusedTextBox() then
+                    return
+                end
+                if type(_G.__FridayOmegaChatTyping) == "function" then
+                    local ok, typing = pcall(_G.__FridayOmegaChatTyping)
+                    if ok and typing then
+                        return
+                    end
+                end
+                local chatFocused = false
+                pcall(function()
+                    local tcs = game:GetService("TextChatService")
+                    local bar = tcs and tcs.ChatInputBarConfiguration
+                    chatFocused = bar and bar.IsFocused == true
+                end)
+                if chatFocused then
+                    return
+                end
                 if tostring(Input.KeyCode) == Library.MenuKeybind or tostring(Input.UserInputType) == Library.MenuKeybind then
                     Window:SetOpen(not Window.IsOpen)
                 end
